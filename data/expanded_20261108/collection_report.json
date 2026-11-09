@@ -1,0 +1,25 @@
+{
+  "api_count": 552,
+  "unique_jobs": 552,
+  "relations": 4070,
+  "relation_types": {
+    "핵심능력": 764,
+    "관련학과": 2101,
+    "관련자격": 1205
+  },
+  "prior_cache_reused": 50,
+  "api_requests": 558,
+  "status_counts": {
+    "200": 558
+  },
+  "collected_at": "2026-11-08",
+  "limits": "일일 및 시간당 수치 미확인. 무제한을 의미하지 않음. 최소 2초 순차 호출, 자동 재시도 없음.",
+  "empty_fields": {
+    "work": 0,
+    "related_majors": 66,
+    "related_certificates": 198,
+    "certificate_guidance": 197,
+    "training": 214,
+    "core_abilities": 0
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "filename": "outlook_2023.pdf",
+  "sha256": "0b51d979abd6f92c454e3c65b19ef02baca012ea8487a048075c0bf42332907e",
+  "pages": 668,
+  "chunks": 2013,
+  "extraction": "pymupdf get_text(sort=True); page bounded; 800 chars; overlap 100",
+  "document_id": "KEIS_OUTLOOK_2023_0b51d979abd6",
+  "publication_year": 2023,
+  "source_url": "https://www.data.go.kr/data/15140285/fileData.do",
+  "provider_source_url": "https://www.keis.or.kr/keis/ko/proj/114/pblc/detail.do?categoryIdx=125&pubIdx=9672",
+  "expected_hash_match": true,
+  "license": "공공누리 제2유형: 출처표시·상업적 이용금지",
+  "visual_review_pdf_pages": [
+    21,
+    331,
+    661
+  ],
+  "printed_page_method": "각 페이지 머리말에서 개별 추출; 미확인 값은 null",
+  "mapping_counts": {
+    "partial": 14,
+    "exact": 11,
+    "unmatched": 22,
+    "verified_equivalent": 3
+  },
+  "linked_chunks": 180,
+  "limitations": [
+    "페이지 내 800자/100자 겹침으로 문장·표가 분할될 수 있음",
+    "전체 표의 읽기 순서·수치를 수동 검수한 것은 아님",
+    "부분 대응은 동일 직업으로 연결하지 않음",
+    "PDF 관련학과를 별도 그래프 관계로 추출하지 않음; API 관련학과 관계는 보존"
+  ]
+}

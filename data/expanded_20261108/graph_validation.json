@@ -1,0 +1,21 @@
+{
+  "nodes": {
+    "Job": 552,
+    "Ability": 11,
+    "Major": 405,
+    "Certificate": 573
+  },
+  "edges": {
+    "핵심능력": 764,
+    "관련학과": 2093,
+    "관련자격": 1204
+  },
+  "chunks": {
+    "career_api": 6798,
+    "pdf_2023": 180
+  },
+  "source_edge_rows": 4070,
+  "removed_duplicate_edges": 9,
+  "missing_edge_endpoints": 0,
+  "duplicate_chunk_ids": 0
+}

@@ -1,0 +1,14 @@
+{
+  "unique_jobs": 552,
+  "reported_api_count": 552,
+  "source_relations_verified": 4070,
+  "mismatches": 0,
+  "graph_nodes": 1541,
+  "graph_edges": 4061,
+  "retrieval_chunks": 6978,
+  "pdf_linked_chunks": 180,
+  "eval_draft_questions": 41,
+  "scanned_output_files_for_secrets": 623,
+  "manual_review": "PDF 원문과 평가 정답 및 신규 후보는 전체 수작업 검토하지 않음",
+  "ragas_guardrails": "미실시"
+}
