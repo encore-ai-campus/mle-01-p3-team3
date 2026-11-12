@@ -2,8 +2,8 @@
 
 from langgraph.graph import END, START, StateGraph
 
-from careeragent.app.core.schemas import ChatContext
-from careeragent.app.graph.nodes import (
+from app.core.schemas import ChatContext
+from app.graph.nodes import (
     abstain_node,
     output_node,
     reasoner_node,
@@ -11,7 +11,7 @@ from careeragent.app.graph.nodes import (
     supervisor_node,
     verifier_node,
 )
-from careeragent.app.graph.state import AgentState
+from app.graph.state import AgentState
 
 
 def build_app(checkpointer=None, interrupt_before=None):

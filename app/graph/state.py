@@ -8,7 +8,7 @@ from typing import Annotated, TypedDict,Literal
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from careeragent.app.core.schemas import Evidence, SearchWorkerResult, VerificationResult
+from app.core.schemas import Evidence, SearchWorkerResult, VerificationResult
 
 
 class AgentState(TypedDict):

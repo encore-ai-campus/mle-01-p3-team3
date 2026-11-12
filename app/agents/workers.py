@@ -2,19 +2,19 @@
 
 from langchain.agents import create_agent
 
-from careeragent.app.core.config import llm
-from careeragent.app.core.prompts import (
+from app.core.config import llm
+from app.core.prompts import (
     REASONER_SYSTEM_PROMPT,
     SEARCH_SYSTEM_PROMPT,
     VERIFIER_SYSTEM_PROMPT,
 )
-from careeragent.app.core.schemas import (
+from app.core.schemas import (
     ReasonerResult,
     SearchWorkerResult,
     VerificationResult,
 )
 
-from careeragent.app.tools.search import get_search_tools
+from app.tools.search import get_search_tools
 
 
 

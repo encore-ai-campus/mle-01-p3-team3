@@ -1,12 +1,12 @@
-"""Supervisor와 Worker 그래프의 노드를 작성하는 연습 파일."""
+"""Supervisor와 Worker 그래프의 노드를 작성하는  파일."""
 
 from typing import Any, Literal
 
 from langgraph.graph import END
 from langgraph.types import Command
 
-from careeragent.app.agents.workers import create_workers
-from careeragent.app.graph.state import AgentState
+from app.agents.workers import create_workers
+from app.graph.state import AgentState
 
 
 WORKERS: dict[str, object] | None = None

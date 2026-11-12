@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.tools import tool
 from neo4j import GraphDatabase
 
-from careeragent.app.core.config import NEO4J_DATABASE, NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, embedding_model
+from app.core.config import NEO4J_DATABASE, NEO4J_PASSWORD, NEO4J_URI, NEO4J_USER, embedding_model
 
 
 VECTOR_INDEX_NAME = os.getenv("NEO4J_VECTOR_INDEX", "career_embedding_index")
