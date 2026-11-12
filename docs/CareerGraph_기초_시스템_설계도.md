@@ -151,7 +151,7 @@ NeMo의 검증 전용 `check`/`check_async` 경로는 주 답변 생성 없이 �
 | `data/expanded_20261108/retrieval_chunks.json` | API 6,798개, 기존 검토 PDF 연결 180개: 총 6,978개 |
 | `data/expanded_20261108/cache/` | 커리어넷 API 목록·상세 원본 응답 |
 | `data/pdf/` | PDF 청크, 직업 대응표·근거, 목차와 메타데이터 |
-| `data/expanded_20261108/evaluation_draft.json` | 질문·기대 경로·근거를 기록한 평가 질문 초안 41개 |
+| `eval/evaluation_draft.json` | 질문·기대 엔티티·경로·근거를 기록한 평가 문항 240개. 채점 규칙은 `eval/CareerGraph_평가셋_채점규칙.md` |
 
 현재 파일은 **수집·전처리·구조 검증 단계**의 산출물이다. Neo4j 적재, 벡터 생성, 검색·모델 평가가 끝났다는 의미가 아니다. 자료 구성과 기존 검증 범위는 `data/README.md`를 따른다.
 

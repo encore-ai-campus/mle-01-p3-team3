@@ -9,13 +9,13 @@
 - `expanded_20261108/relations.csv`: API 원본 관계 4,070행. 중복 9행을 보존합니다.
 - `expanded_20261108/retrieval_chunks.json`: API 청크 6,798개와 PDF 청크 180개. 각 청크의 출처와 필드·페이지 참조를 보존합니다.
 - `expanded_20261108/cache/`: 목록 응답 56개와 직업 상세 응답 552개. API 관계의 근거를 `cache/job_<job_code>.json`에서 확인합니다.
-- `expanded_20261108/evaluation_draft.json` / `.csv`: 일반·Multi-hop·안전·보류 등 41개 질문의 **초안**. 팀의 정답 및 원문 검토가 필요합니다.
+- `../eval/evaluation_draft.json` / `.csv`: 8개 카테고리 240개 평가 문항과 기대 엔티티·경로·근거. 채점 규칙은 `../eval/CareerGraph_평가셋_채점규칙.md`를 따릅니다.
 - `expanded_20261108/pdf_existing_reviewed_links.csv`: 기존에 검토한 PDF–직업 대응 14개. 동등성 검토 3개는 재확인이 필요합니다.
 - `expanded_20261108/pdf_mapping_candidates_review.csv`: 이름 유사도 기반 미검토 후보. 자동 연결하지 않습니다.
 - `expanded_20261108/collection_report.json`, `graph_validation.json`, `validation.json`: 수집 수량과 검증 기록.
 - `pdf/outlook_chunks.json`, `job_mapping.csv`, `mapping_evidence.json`, `pdf_sections.json`, `pdf_manifest.json`: 기존 2023 PDF 청크·직업 매핑·근거와 판본 메타데이터.
 
-PDF 검색 청크에 있는 `../pdf/outlook_chunks.json`은 `expanded_20261108`을 기준으로 해석합니다. API 청크의 `cache/job_<코드>.json`도 `expanded_20261108` 기준 경로입니다. 평가 초안의 `raw_file`은 같은 cache 폴더의 파일명입니다. API 주소는 키를 제거한 식별 주소로, 로그인 없이 열리는 원문 페이지가 아닙니다.
+PDF 검색 청크에 있는 `../pdf/outlook_chunks.json`은 `expanded_20261108`을 기준으로 해석합니다. API 청크의 `cache/job_<코드>.json`도 `expanded_20261108` 기준 경로입니다. 평가셋 근거는 `row_id`, `source_field`, `evidence_id`로 원본 직업 행과 연결합니다. API 주소는 키를 제거한 식별 주소로, 로그인 없이 열리는 원문 페이지가 아닙니다.
 
 ## 출처와 주의사항
 
