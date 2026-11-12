@@ -237,7 +237,7 @@ Streamlit 질문 입력
 | `expanded_20261108/graph_nodes.csv` | 그래프 적재용 노드 |
 | `expanded_20261108/graph_edges.csv` | 중복 제거한 그래프 적재용 관계 |
 | `expanded_20261108/retrieval_chunks.json` | API·검토된 PDF 검색 근거 청크 |
-| `expanded_20261108/evaluation_draft.csv` | 평가 질문 41개 초안 |
+| `eval/evaluation_draft.csv` | 평가 문항 240개와 기대 엔티티·경로·근거 |
 | `expanded_20261108/pdf_mapping_candidates_review.csv` | PDF 직업 연결을 위한 미검토 후보 |
 | `expanded_20261108/validation.json` | 데이터·관계·참조 검증 기록 |
 | `expanded_20261108/데이터_평가셋_안내.md` | 수집 범위와 파일 사용법·한계 |
