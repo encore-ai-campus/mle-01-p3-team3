@@ -15,6 +15,7 @@ from app.core.config import PROJECT_DIR, llm, settings
 from app.core.prompts import SEARCH_SYSTEM_PROMPT
 from app.core.schemas import SearchMode, SearchWorkerResult
 from app.tools.search import get_search_tools
+from app.tools.profile import career_context
 
 
 ROUTE_CRITERIA = {
@@ -40,6 +41,13 @@ ROUTE_PROMPT = SEARCH_SYSTEM_PROMPT + """
 검색 방식 하나만 반환한다.
 질문과 최근 대화를 함께 참고한다. 공통 선택 정책:
 """ + json.dumps(ROUTE_CRITERIA, ensure_ascii=False)
+
+ROUTE_PROMPT += """
+user_career는 SQL에서 읽은 현재 선택 회원의 현재·목표 직업, 전공, 자격입니다.
+'내 현재 커리어 관련 직업'은 current_job/current_major/current_certificate와
+연결된 다른 직업의 관계 탐색으로 해석합니다. 업무 설명도 필요하면 hybrid입니다.
+'내정보'를 정보보호·정보중개 직업에 대한 일반 검색어로 해석하지 마세요.
+"""
 
 TOOL_NAMES = {
     "vector": "vector_search",
@@ -112,6 +120,7 @@ async def classify_search(state: dict) -> SearchMode:
 
     payload = {
         "question": question,
+        "user_career": career_context(state.get("user_profile", {})),
         "recent_conversation": recent_conversation(state),
         "previous_search_mode": state.get("search_mode"),
         "verification_feedback": state.get("verification_feedback"),
@@ -189,6 +198,12 @@ async def run_jev_search(
 반드시 {tool.name} 도구를 정확히 한 번 호출할 인자를 작성한다.
 근거와 검색 결과는 직접 작성하지 않는다.
 질문과 최근 대화, 검증 피드백을 참고한다.
+워커 입력의 User profile에 SQL에서 조회한 현재·목표 커리어가 있다.
+'내 현재 커리어'는 current_job/current_major/current_certificate로 해석한다.
+'내 목표 커리어'는 target_job/target_major/target_certificate로 해석한다.
+관련 직업 질문이면 실제 직업명·전공·자격을 검색 인자와 Cypher에 사용한다.
+'내정보'라는 단어 자체를 직업명이나 벡터 검색의 대상으로 사용하지 않는다.
+연락처·이메일·주소는 직업 검색 인자에 포함하지 않는다.
 
 graph_search에는 별도 파라미터 전달 인자가 없으므로
 미정의 $job_codes 등의 변수를 사용하는 쿼리를 만들지 않는다.
