@@ -10,9 +10,41 @@ NeMo 가 지금까지의 대화 기록(이벤트 목록)을 넣어 준다. 앱�
 - reply: 막을 때 팬에게 보낼 문장(core/policies.py 의 reply_for_rule)
 """
 from app.core.policies import PERSONA, reply_for_rule
-from app.core.prompts import INPUT_POLICY, OUTPUT_POLICY
 from app.guards.judges import jev_facts_probability, jev_policy_judgement
 from app.guards.validators import validate_output_text
+
+INPUT_POLICY = PERSONA["input_policy"]
+OUTPUT_POLICY = PERSONA["output_policy"]
+
+
+# sql조회 가드레일(jev 판단)
+async def member_access_input(
+    text: str,
+    selected_user_id: str | None = None,
+) -> dict:
+    """Jev로 본인·타인 정보 요청을 구분한다. 오류일 때는 조회를 허용하지 않는다."""
+    try:
+        judgement = await jev_policy_judgement(
+            state={"user_message": text, "selected_user_id": selected_user_id},
+            policy=PERSONA["member_access_policy"],
+            rules={"DB-ACCESS-01": "선택한 회원 이외의 회원 정보 조회 또는 권한 우회 요청"},
+        )
+        blocked = judgement["probability"] > 0.5
+        return {
+            "blocked": blocked,
+            "probability": judgement["probability"],
+            "rule_id": "DB-ACCESS-01" if blocked else "",
+            "reply": "현재 선택한 회원 본인의 정보만 조회할 수 있습니다." if blocked else "",
+        }
+    except Exception:
+        return {
+            "blocked": True,
+            "rule_id": "RAIL-ERROR",
+            "reply": "회원 정보 접근 검사를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        }
+
+
+
 
 # 층마다 막았을 때 남기는 규칙 id. persona.yaml 규칙이 아닌 층(분류 모델)은 층 이름으로 남긴다
 PROMPT_GUARD_RULE = "PG2"
@@ -109,7 +141,7 @@ async def guardrails_ai_output(text):
 
 # rails/guard/rails.co 가 execute 로 부르는 액션 목록. 함수 이름이 곧 액션 이름이다
 GUARD_ACTIONS = [
-
+    member_access_input,
     jev_policy_input,
     # TODO(함께 따라하기): 출력 레일 액션 맨 앞(jev_policy_output 위)에 staff_code_output 를 더한다
     jev_policy_output,
@@ -143,3 +175,4 @@ if __name__ == "__main__":
         {"type": "UserMessage", "text": "A 알려 줘"},
     ]
     print("앞선 사용자 메시지:", previous_user_messages(events_sample))
+
