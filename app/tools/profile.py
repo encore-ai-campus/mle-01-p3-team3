@@ -47,6 +47,17 @@ def load_own_career(user_id: str | None) -> dict:
         return dict(row) if row is not None else {}
 
 
+CAREER_FIELDS = (
+    "current_job", "current_major", "current_certificate",
+    "target_job", "target_major", "target_certificate",
+)
+
+
+def career_context(profile: dict) -> dict:
+    """직업 검색에는 연락처 대신 현재·목표 커리어만 전달한다."""
+    return {key: profile[key] for key in CAREER_FIELDS if profile.get(key)}
+
+
 if __name__ == "__main__":
     profile = load_own_career("U001")
     print(profile)

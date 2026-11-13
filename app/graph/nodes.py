@@ -10,7 +10,7 @@ from app.core.prompts import WORKER_PROMPT_TEMPLATES
 from app.graph.state import AgentState
 from langgraph.runtime import Runtime
 from app.core.schemas import ChatContext
-from app.tools.profile import load_own_career
+from app.tools.profile import load_own_career, career_context, CAREER_FIELDS
 
 
 WORKERS: dict[str, object] | None = None
@@ -56,7 +56,7 @@ def _legacy_build_worker_instruction(state: AgentState) -> str:
     )
 
 
-def build_worker_instruction(state: AgentState) -> str:
+def build_worker_instruction(state: AgentState, worker_name: str | None = None) -> str:
     """현재 질문과 최근 대화 기록을 워커 지시문으로 만든다."""
 
     messages = state.get("messages", [])[-6:]
@@ -66,11 +66,23 @@ def build_worker_instruction(state: AgentState) -> str:
         else str(message)
         for message in messages
     )
+    profile = state.get("user_profile", {})
+    evidence = state.get("evidence", [])
+    if worker_name == "search":
+        profile = career_context(profile)
+        evidence = [item for item in evidence if
+                    item.get("source") != "sqlite_profile"
+                    or item.get("metadata", {}).get("source_field") in CAREER_FIELDS]
     return (
         f"Question: {state['question']}\n"
+        f"User profile: {profile}\n"
+        "개인화 질문의 '내 현재 커리어'는 current_job/current_major/current_certificate를, "
+        "'내 목표 커리어'는 target_job/target_major/target_certificate를 의미합니다. "
+        "관련 직업 검색은 이 실제 직업·전공·자격을 대상으로 하며 '내정보'를 직업명으로 검색하지 마세요. "
+        "목표 자격을 이미 보유한 자격으로 해석하지 마세요. 프로필도 제공된 근거 ID에 맞춰 인용하세요.\n"
         f"Recent conversation history:\n{history}\n"
         f"Search mode: {state.get('search_mode')}\n"
-        f"Evidence: {state.get('evidence', [])}\n"
+        f"Evidence: {evidence}\n"
         f"Graph paths: {state.get('graph_paths', [])}\n"
         f"Answer draft: {state.get('answer_draft')}\n"
         f"Claims: {state.get('claims', [])}\n"
@@ -85,7 +97,7 @@ def build_worker_messages(state: AgentState, worker_name: str) -> list:
     prompt = WORKER_PROMPT_TEMPLATES[worker_name]
     rendered_messages = prompt.invoke({
         "messages": state.get("messages", [])[-6:],
-        "instruction": build_worker_instruction(state),
+        "instruction": build_worker_instruction(state, worker_name),
     }).messages
     # create_agent가 system_prompt를 별도로 넣으므로 placeholder가 만든
     # 중복 SystemMessage는 제거하고 대화 메시지만 전달한다.
@@ -252,6 +264,22 @@ async def search_node(state: AgentState) -> dict[str, Any]:
         worker = get_worker("search")
         result = await worker.ainvoke({"messages": messages})
         search_data = result["structured_response"].model_dump()
+
+    # 실제 SQL 조회 값도 근거로 전달해 추론·검증 워커가 같은 값을 확인한다.
+    profile = state.get("user_profile", {})
+    profile_evidence = [
+        {
+            "evidence_id": f"profile:{profile['user_id']}:{key}",
+            "content": f"{key}: {value}",
+            "source": "sqlite_profile",
+            "score": None,
+            "graph_path": [],
+            "metadata": {"source_field": key},
+        }
+        for key, value in profile.items()
+        if key != "user_id" and value is not None and value != ""
+    ] if profile else []
+    search_data["evidence"] = [*search_data["evidence"], *profile_evidence]
 
     return {
         "search_mode": search_data["search_mode"],
