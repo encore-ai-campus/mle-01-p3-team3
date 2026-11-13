@@ -15,6 +15,10 @@ class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     question: str
 
+    # 입력 가드레일 검사 결과
+    input_guard_status: str | None
+    input_guard_rule: str | None
+    input_guard_error: str | None
     # SQLite에서 조회한 본인의 현재, 목표 커리어
     user_profile: dict[str,Any]
     profile_loaded: bool
@@ -45,6 +49,10 @@ class AgentState(TypedDict):
     retry_count: int
     step_count: int
 
+    output_guard_status: str | None
+    output_guard_rule: str | None
+    output_guard_error: str | None
+
     # 종료 결과
     status: Literal[
         "running",
@@ -65,6 +73,12 @@ def empty_turn() -> dict:
     return {
         "messages": [],
         "question": "",
+
+        # 입력 가드레일: 아직 검사하지 않음
+        "input_guard_status": None,
+        "input_guard_rule": None,
+        "input_guard_error": None,
+
         'user_profile':{},
         'profile_loaded': False,
         'profile_required': None,
@@ -83,6 +97,11 @@ def empty_turn() -> dict:
         "retry_required": False,
         "retry_count": 0,
         "step_count": 0,
+
+        "output_guard_status": None,
+        "output_guard_rule": None,
+        "output_guard_error": None,
+
         "status": "running",
         "final_response": None,
         "error": None,

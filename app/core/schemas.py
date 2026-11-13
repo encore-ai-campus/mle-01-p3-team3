@@ -38,8 +38,10 @@ class SearchResult:
 @dataclass
 class ChatContext:
     """노드가 runtime.context 로 읽는 실행 값 묶음."""
-    retriever: Any        
+    rails: Any
+    retriever: Any
     user_id: str | None=None    # 로그인한 사용자 id. 로그인하지 않았으면 None 이다
+
 
 
 class SearchWorkerResult(BaseModel):

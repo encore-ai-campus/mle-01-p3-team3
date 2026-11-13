@@ -2,6 +2,15 @@
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from app.core.config import BASE_DATETIME
+from app.core.policies import PERSONA
+
+# [프롬프트] 루나 시스템 프롬프트: persona.yaml 의 글에서 {facts} 자리에 기본 사실 블록을 끼운다
+SYSTEM_PROMPT = PERSONA["system_prompt"].format(facts=PERSONA["facts"])
+
+# [프롬프트] Jev 입력, 출력 레일 판정 정책(persona.yaml 의 글 그대로)
+INPUT_POLICY = PERSONA["input_policy"]
+OUTPUT_POLICY = PERSONA["output_policy"]
 
 AURA_SEARCH_SCHEMA_HINT = """
 Aura schema for Search Worker:
