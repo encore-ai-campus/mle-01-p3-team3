@@ -53,7 +53,8 @@ class ReasonerResult(BaseModel):
     """Reasoner Worker가 반환하여 AgentState에 저장할 결과."""
 
     answer_draft: str
-    claims: list[dict[str, Any]]
+    # 모델이 주장 문자열 또는 구조화된 dict를 반환하는 경우를 모두 허용한다.
+    claims: list[Any]
     claim_evidence_ids: list[list[str]]
 
 

@@ -34,7 +34,9 @@ def build_worker_tools() -> dict[str, list]:
     """워커별 도구 목록을 준비한다."""
 
     # 실제 도구는 나중에 tools/ 파일에서 가져온다.
-    retriever_tools = get_search_tools(),
+    # get_search_tools() 자체가 list[BaseTool]을 반환하므로
+    # 뒤에 쉼표를 붙여 tuple[list[BaseTool]]로 만들면 안 된다.
+    retriever_tools = get_search_tools()
     reasoner_tools = []
     verifier_tools = []
 
