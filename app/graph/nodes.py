@@ -8,6 +8,9 @@ from langgraph.types import Command
 from app.agents.workers import create_workers
 from app.core.prompts import WORKER_PROMPT_TEMPLATES
 from app.graph.state import AgentState
+from langgraph.runtime import Runtime
+from app.core.schemas import ChatContext
+from app.tools.profile import load_own_career
 
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
@@ -92,16 +95,9 @@ def build_worker_instruction(state: AgentState) -> str:
         else str(message)
         for message in messages
     )
-    follow_up_hint = ""
-    if "전공" in state.get("question", "") and len(messages) > 1:
-        follow_up_hint = (
-            "Follow-up intent: connect the previous occupation to related major nodes. "
-            "Prefer hybrid or graph search and return major names with related_majors evidence.\n"
-        )
     return (
         f"Question: {state['question']}\n"
         f"Recent conversation history:\n{history}\n"
-        f"{follow_up_hint}"
         f"Search mode: {state.get('search_mode')}\n"
         f"Evidence: {state.get('evidence', [])}\n"
         f"Graph paths: {state.get('graph_paths', [])}\n"
@@ -148,50 +144,44 @@ def bind_claim_evidence(
     return bound
 
 
-def repair_abstaining_draft(state: AgentState, answer_draft: str) -> str:
-    """직업명이 일치하는 강한 근거가 있을 때만 과도한 보류를 보정한다."""
-
-    if "전공" in state.get("question", ""):
-        majors = list(dict.fromkeys(
-            str(evidence.get("content"))
-            for evidence in state.get("evidence", [])
-            if evidence.get("metadata", {}).get("source_field") == "related_majors"
-            and evidence.get("content")
-        ))
-        if majors:
-            return f"관련 전공으로는 {', '.join(majors[:5])} 등을 고려할 수 있습니다."
-
-    abstain_phrases = (
-        "답하기 어렵",
-        "확정하기 어렵",
-        "확인하기 어렵",
-        "근거가 부족",
-        "확인할 수 없",
-        "설명할 수 없",
-    )
-    if not any(phrase in answer_draft for phrase in abstain_phrases):
-        return answer_draft
-
-    question = state.get("question", "")
-    for evidence in state.get("evidence", []):
-        metadata = evidence.get("metadata", {})
-        job_name = str(metadata.get("job_name", ""))
-        score = evidence.get("score") or 0
-        if job_name and job_name in question and score >= 0.70:
-            return str(evidence.get("content", answer_draft))
-    return answer_draft
-
-
 def make_abstain_update(state: AgentState) -> dict[str, Any]:
-    """처리 상한 또는 근거 부족 시 보류 상태를 만든다."""
-
+    """보류 응답도 대화 기록에 남긴다."""
+    answer = "현재 자료만으로는 답변을 확정하기 어렵습니다."
     return {
         "status": "abstain",
         "worker": "end",
         "worker_trace": append_worker_trace(state, "abstain"),
-        "final_response": "현재 자료만으로는 답변을 확정하기 어렵습니다.",
-        "error": None,
+        "final_response": answer,
+        "messages": [{"role": "assistant", "content": answer}],
+        "error": state.get("error"),
     }
+
+
+def profile_node(state: AgentState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    """선택한 회원 ID로 개인정보와 현재·목표 커리어를 읽는다."""
+    profile = load_own_career(runtime.context.user_id)
+    return {
+        "user_profile": profile,
+        "profile_loaded": True,
+        "worker_trace": append_worker_trace(state, "profile"),
+    }
+
+
+async def profile_check_node(state: AgentState) -> dict[str, Any]:
+    """Jev 판정 결과를 State에 저장한다. 다음 노드는 조건부 엣지가 선택한다."""
+    from app.router.profile_router import classify_profile_need
+
+    trace = append_worker_trace(state, "profile_check")
+    try:
+        required = await classify_profile_need(state)
+    except RuntimeError as exc:
+        return {
+            "profile_required": None,
+            "error": str(exc),
+            "status": "error",
+            "worker_trace": trace,
+        }
+    return {"profile_required": required, "error": None, "worker_trace": trace}
 
 
 def supervisor_node(
@@ -258,7 +248,7 @@ def supervisor_node(
                 "claims": [],
                 "claim_evidence_ids": [],
                 "verification_result": None,
-                "verification_feedback": None,
+                "verification_feedback": state.get("verification_feedback"),
                 "retry_required": False,
             },
         )
@@ -272,15 +262,25 @@ def supervisor_node(
         },
     )
 
+# 수정
+async def search_node(state: AgentState) -> dict[str, Any]:
+    """설정에 따라 기존 LLM 검색 또는 Jev 검색을 실행."""
+    from app.router.jev_router import (
+        run_jev_search,
+        search_router_backend,
+    )
 
-def search_node(state: AgentState) -> dict[str, Any]:
-    """검색 워커를 호출하고 검색 결과를 상태에 반영한다."""
+    messages = build_worker_messages(state, "search")
 
-    worker = get_worker("search")
-    result = worker.invoke({"messages": build_worker_messages(state, "search")})
-
-    search_output = result["structured_response"]
-    search_data = search_output.model_dump()
+    if search_router_backend() == "jev":
+        search_data = await run_jev_search(
+            state=state,
+            worker_messages=messages,
+        )
+    else:
+        worker = get_worker("search")
+        result = await worker.ainvoke({"messages": messages})
+        search_data = result["structured_response"].model_dump()
 
     return {
         "search_mode": search_data["search_mode"],
@@ -301,14 +301,12 @@ def reasoner_node(state: AgentState) -> dict[str, Any]:
 
     reasoner_output = result["structured_response"]
 
-    answer_draft = repair_abstaining_draft(state, reasoner_output.answer_draft)
+    answer_draft = reasoner_output.answer_draft
     claims = [
         claim if isinstance(claim, dict)
         else {"claim": str(claim), "evidence_ids": []}
         for claim in reasoner_output.claims
     ]
-    if answer_draft != reasoner_output.answer_draft:
-        claims = [{"claim": answer_draft, "evidence_ids": []}]
     if not claims and answer_draft and state.get("evidence"):
         claims = [{"claim": answer_draft, "evidence_ids": []}]
 
@@ -391,10 +389,11 @@ def verifier_node(state: AgentState) -> dict[str, Any]:
 
 
 def output_node(state: AgentState) -> dict[str, Any]:
-    """검증된 답변 초안을 최종 응답으로 만든다."""
-
+    """최종 답변을 반환하고 다음 질문을 위해 대화에 기록한다."""
+    answer = str(state.get("answer_draft") or "")
     return {
-        "final_response": state.get("answer_draft"),
+        "final_response": answer,
+        "messages": [{"role": "assistant", "content": answer}],
         "worker": "end",
         "worker_trace": append_worker_trace(state, "output"),
         "status": "supported",

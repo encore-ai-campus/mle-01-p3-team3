@@ -19,9 +19,13 @@ class AgentState(TypedDict):
     input_guard_status: str | None
     input_guard_rule: str | None
     input_guard_error: str | None
+    # SQLite에서 조회한 본인의 현재, 목표 커리어
+    user_profile: dict[str,Any]
+    profile_loaded: bool
+    profile_required: bool | None
 
     # 슈퍼바이저가 정하는 다음 워커
-    worker: Literal['search','reasoner','verifier','output','end']
+    worker: Literal['profile','search','reasoner','verifier','output','end']
     worker_trace: list[str]
 
     # search 워커가 사용하는 검색 방식
@@ -75,6 +79,9 @@ def empty_turn() -> dict:
         "input_guard_rule": None,
         "input_guard_error": None,
 
+        'user_profile':{},
+        'profile_loaded': False,
+        'profile_required': None,
         "worker": "search",
         "worker_trace": [],
         "search_mode": None,

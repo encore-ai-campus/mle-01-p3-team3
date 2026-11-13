@@ -58,3 +58,13 @@ define subflow guardrails ai output
     bot refuse with rule
     stop
   $bot_message = $verdict["text"]
+
+# ===== 회원 DB 접근 입력 레일 =====
+# selected_user_id는 앱이 context 메시지로 전달한다. 질문에서 가져오지 않는다.
+define subflow member access input
+  $verdict = execute member_access_input(text=$user_message, selected_user_id=$selected_user_id)
+  if $verdict["blocked"]
+    $reply = $verdict["reply"]
+    $rule_id = $verdict["rule_id"]
+    bot refuse with rule
+    stop

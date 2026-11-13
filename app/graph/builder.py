@@ -1,9 +1,12 @@
 """CareerGraph의 노드를 등록하고 실행 그래프를 조립하는 모듈."""
 
 from langgraph.graph import END, START, StateGraph
+from typing import Literal
 
 from app.core.schemas import ChatContext
 from app.graph.nodes import (
+    profile_node,
+    profile_check_node,
     abstain_node,
     input_guard_node,   # 추가
     output_guard_node,  # 추가
@@ -14,6 +17,13 @@ from app.graph.nodes import (
     verifier_node,
 )
 from app.graph.state import AgentState
+
+
+def route_profile(state: AgentState) -> Literal["profile", "search", "abstain"]:
+    """State에 저장된 Jev 결과로 분기하며 판정 오류면 종료한다."""
+    if state.get("error") or state.get("profile_required") is None:
+        return "abstain"
+    return "profile" if state["profile_required"] else "search"
 
 
 def build_app(checkpointer=None, interrupt_before=None):
@@ -27,6 +37,8 @@ def build_app(checkpointer=None, interrupt_before=None):
     # 노드 등록
     builder.add_node("input_guard", input_guard_node)
 
+    builder.add_node("profile_check", profile_check_node)
+    builder.add_node("profile", profile_node)
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("search", search_node)
     builder.add_node("reasoner", reasoner_node)
@@ -39,6 +51,13 @@ def build_app(checkpointer=None, interrupt_before=None):
 
     # 시작점
     builder.add_edge(START, "input_guard")
+    builder.add_edge(START, "profile_check")
+    builder.add_conditional_edges("profile_check", route_profile, {
+        "profile": "profile",
+        "search": "search",
+        "abstain": "abstain",
+    })
+    builder.add_edge("profile", "search")
 
     # Supervisor의 Command(goto)가 다음 워커를 선택한다.
     # 각 워커는 작업이 끝나면 Supervisor로 돌아온다.

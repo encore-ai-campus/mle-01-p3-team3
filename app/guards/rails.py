@@ -8,7 +8,9 @@ NeMo 에 맞지 않는 일은 앱이 한다. 판정에 넘길 메시지 고르�
 import logging
 
 # config 를 nemoguardrails 보다 먼저 불러온다. config 가 NeMo 사용 통계 전송을 끄는 환경 변수를 정한다
-from app.core.config import RAILS_DIR, RECENT_MESSAGES
+from app.core.config import PROJECT_DIR, RECENT_MESSAGES
+
+RAILS_DIR = PROJECT_DIR / "rails" / "guard"
 
 from nemoguardrails import LLMRails, RailsConfig
 from nemoguardrails.rails.llm.options import RailStatus, RailType
@@ -179,3 +181,36 @@ if __name__ == "__main__":
     print("검색 레일: 남긴 문서 수", len(filtered["kept"]), "/ 뺀 절", filtered["dropped_ids"])
     if RAILS_DIR.exists():
         print("판정 객체 만들기:", type(build_rails()).__name__)
+
+
+# ===== 회원 접근 검사 전용: 에이전트 그래프 연결 전 별도 호출 =====
+def build_member_access_rails() -> LLMRails:
+    """기존 입력·출력 검사와 분리해 회원 접근 레일만 테스트한다."""
+    config = RailsConfig.from_path(str(RAILS_DIR))
+    config.rails.input.flows = ["member access input"]
+    config.rails.output.flows = []
+    rails = LLMRails(config)
+    register_guard_actions(rails)
+    return rails
+
+
+async def check_member_access_input(
+    rails: LLMRails,
+    question: str,
+    selected_user_id: str | None,
+) -> dict:
+    """선택한 회원 ID를 호출별로 전달해 입력만 검사한다. SQL은 실행하지 않는다."""
+    messages = [
+        {"role": "context", "content": {"selected_user_id": selected_user_id}},
+        {"role": "user", "content": question},
+    ]
+    try:
+        result = await rails.check_async(messages, rail_types=[RailType.INPUT])
+        return to_verdict(result)
+    except Exception:
+        return {
+            "status": "blocked",
+            "blocked_by": "member access input",
+            "rule_id": RAIL_ERROR_RULE,
+            "content": "회원 정보 접근 검사를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        }
