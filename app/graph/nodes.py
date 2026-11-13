@@ -8,6 +8,9 @@ from langgraph.types import Command
 from app.agents.workers import create_workers
 from app.core.prompts import WORKER_PROMPT_TEMPLATES
 from app.graph.state import AgentState
+from langgraph.runtime import Runtime
+from app.core.schemas import ChatContext
+from app.tools.profile import load_own_career
 
 
 WORKERS: dict[str, object] | None = None
@@ -123,6 +126,33 @@ def make_abstain_update(state: AgentState) -> dict[str, Any]:
         "messages": [{"role": "assistant", "content": answer}],
         "error": state.get("error"),
     }
+
+
+def profile_node(state: AgentState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    """선택한 회원 ID로 개인정보와 현재·목표 커리어를 읽는다."""
+    profile = load_own_career(runtime.context.user_id)
+    return {
+        "user_profile": profile,
+        "profile_loaded": True,
+        "worker_trace": append_worker_trace(state, "profile"),
+    }
+
+
+async def profile_check_node(state: AgentState) -> dict[str, Any]:
+    """Jev 판정 결과를 State에 저장한다. 다음 노드는 조건부 엣지가 선택한다."""
+    from app.router.profile_router import classify_profile_need
+
+    trace = append_worker_trace(state, "profile_check")
+    try:
+        required = await classify_profile_need(state)
+    except RuntimeError as exc:
+        return {
+            "profile_required": None,
+            "error": str(exc),
+            "status": "error",
+            "worker_trace": trace,
+        }
+    return {"profile_required": required, "error": None, "worker_trace": trace}
 
 
 def supervisor_node(
