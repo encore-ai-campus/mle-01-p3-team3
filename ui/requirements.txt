@@ -1,0 +1,32 @@
+# Streamlit Community Cloud 전용 의존성 (Main file path: ui/streamlit_app.py, Python 3.12)
+# Cloud 는 진입 파일 폴더(ui/)의 의존성 파일을 저장소 루트의 uv.lock 보다 먼저 쓴다.
+# 루트 pyproject/uv.lock 은 수업 실습 전체(torch, graphrag, mlflow 등)라 Cloud 메모리 한도를 넘기므로 쓰지 않는다.
+# 버전은 로컬 uv.lock 에서 실제로 쓰는 값과 맞춘다.
+
+streamlit==1.59.1
+
+# 에이전트 그래프
+langgraph==1.2.11
+langgraph-checkpoint-sqlite==3.1.1   # app.main 이 AsyncSqliteSaver 를 import 한다
+aiosqlite==0.22.1
+langchain==1.4.2
+langchain-core==1.6.6
+langchain-openai==1.6.2
+openai==2.54.0
+
+# Jev 판정·라우팅
+langchain-typesafe==0.0.1a3
+typesafe-sdk==0.7.1
+
+# 가드레일 (presidio/spaCy/torch 를 끌어오는 sdd extra 와 Guardrails Hub PII 검증기는 넣지 않는다)
+nemoguardrails==0.23.0
+guardrails-ai==0.11.0
+
+# Neo4j Aura 검색
+neo4j==6.2.0
+
+# 설정
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+PyYAML==6.0.3

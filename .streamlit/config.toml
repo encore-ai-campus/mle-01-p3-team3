@@ -1,0 +1,24 @@
+# 커리(Curri) 마스코트 색: 민트 몸체, 블루 망토, 금색 나침반
+[theme]
+base = "light"
+primaryColor = "#1F9E89"
+backgroundColor = "#F6FBFA"
+secondaryBackgroundColor = "#E7F5F1"
+textColor = "#1E2B37"
+linkColor = "#2F6FB8"
+borderColor = "#CFE8E2"
+baseRadius = "0.9rem"
+font = "Noto Sans KR:https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap, sans-serif"
+showWidgetBorder = true
+
+[theme.sidebar]
+backgroundColor = "#EAF6F3"
+secondaryBackgroundColor = "#FFFFFF"
+
+[client]
+toolbarMode = "viewer"
+
+[server]
+runOnSave = false
+# transformers·torch 모듈을 감시하다 torchvision 오류 로그가 쌓이므로 파일 감시를 끈다(코드 수정 후에는 새로고침).
+fileWatcherType = "none"

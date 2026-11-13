@@ -11,6 +11,9 @@ __pycache__/
 output/
 .DS_Store
 .env
+.streamlit/secrets.toml
+.claude/
+.omc/
 .deepeval/
 mlruns/
 mlflow.db
