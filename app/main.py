@@ -11,7 +11,7 @@ from app.core.config import CHECKPOINT_PATH
 from app.core.schemas import ChatContext
 from app.graph.builder import build_app
 from app.graph.state import empty_turn
-
+from app.guards.rails import build_rails
 
 def parse_args() -> argparse.Namespace:
     """CLI 인자를 읽는다."""

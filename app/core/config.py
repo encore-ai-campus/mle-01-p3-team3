@@ -25,7 +25,8 @@ RED_TEAM_PATH = EVAL_DIR / "red_team" / "cases.json"      # 공격 질문과 새
 
 
 # NeMo 설정 폴더(직접 고치는 원본): 입력, 출력 레일. 층 순서는 config.yml 의 flows, 기준값은 rails.co 에 있다
-
+RAILS_DIR = PROJECT_DIR / "rails" / "guard"
+BASELINE_PATH = PROJECT_DIR / "baselines" / "baseline.json"  # 사람이 승인한 기준선(회귀 게이트가 비교한다)
 OUTPUT_DIR = PROJECT_DIR / "output"
 CHECKPOINT_PATH = OUTPUT_DIR / "chat.sqlite"          # 여러 턴 대화 기록(SQLite 체크포인터)
 CHROMA_DIR = OUTPUT_DIR / "chroma"                    # 검색 문서 벡터 저장소

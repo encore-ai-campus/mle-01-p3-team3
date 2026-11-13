@@ -15,6 +15,11 @@ class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     question: str
 
+    # 입력 가드레일 검사 결과
+    input_guard_status: str | None
+    input_guard_rule: str | None
+    input_guard_error: str | None
+
     # 슈퍼바이저가 정하는 다음 워커
     worker: Literal['search','reasoner','verifier','output','end']
     worker_trace: list[str]
@@ -40,6 +45,10 @@ class AgentState(TypedDict):
     retry_count: int
     step_count: int
 
+    output_guard_status: str | None
+    output_guard_rule: str | None
+    output_guard_error: str | None
+
     # 종료 결과
     status: Literal[
         "running",
@@ -60,6 +69,12 @@ def empty_turn() -> dict:
     return {
         "messages": [],
         "question": "",
+
+        # 입력 가드레일: 아직 검사하지 않음
+        "input_guard_status": None,
+        "input_guard_rule": None,
+        "input_guard_error": None,
+
         "worker": "search",
         "worker_trace": [],
         "search_mode": None,
@@ -75,6 +90,11 @@ def empty_turn() -> dict:
         "retry_required": False,
         "retry_count": 0,
         "step_count": 0,
+
+        "output_guard_status": None,
+        "output_guard_rule": None,
+        "output_guard_error": None,
+
         "status": "running",
         "final_response": None,
         "error": None,
