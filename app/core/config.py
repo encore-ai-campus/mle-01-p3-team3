@@ -50,7 +50,7 @@ os.environ["GUARDRAILS_RUN_SYNC"] = "true"
 
 # ===== 고정 모델 =====
 # .env 로 바꾸지 않는다. Chroma 에 768차원으로 넣어 두어, 바꾸면 차원 오류가 나거나 같은 차원이면 엉뚱한 검색이 된다
-EMBEDDING_MODEL = "text-embedding-3-large"                     # 검색 문서와 질문 임베딩
+EMBEDDING_MODEL = "text-embedding-3-small"                    # Aura Job.work_embedding과 동일한 모델
 EMBEDDING_DIMENSIONS = 768
 
 # ===== 설정 값(Settings) =====
@@ -82,7 +82,11 @@ class Settings(BaseSettings):
     )
     neo4j_user: str = Field(
         default="neo4j",
-        validation_alias=AliasChoices("NEO4J_USER", "AURA_USER"),
+        validation_alias=AliasChoices(
+            "NEO4J_USERNAME",
+            "NEO4J_USER",
+            "AURA_USER",
+        ),
     )
     neo4j_password: SecretStr | None = Field(
         default=None,

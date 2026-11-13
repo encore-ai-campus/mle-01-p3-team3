@@ -4,24 +4,25 @@ messages 는 체크포인터가 대화 ID(thread_id)마다 저장해 다음 턴�
 나머지 칸은 이번 턴의 값이다. input_rail 노드가 턴을 시작할 때 모두 비운다.
 """
 # [CareerGraph 수정 필요] 루나 대화 State를 질문·근거·그래프 경로·검증 상태 중심으로 재설계한다.
-from typing import Annotated, TypedDict,Literal
+from typing import Annotated, Any, TypedDict, Literal
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
-from app.core.schemas import Evidence, SearchWorkerResult, VerificationResult
 
 
 class AgentState(TypedDict):
-    messages: list
+    # 체크포인트에 대화 메시지를 누적해 단기기억으로 사용한다.
+    messages: Annotated[list[AnyMessage], add_messages]
     question: str
 
     # 슈퍼바이저가 정하는 다음 워커
     worker: Literal['search','reasoner','verifier','output','end']
+    worker_trace: list[str]
 
     # search 워커가 사용하는 검색 방식
     search_mode: Literal['vector','graph','hybrid'] | None
-    search_result: SearchWorkerResult | None
-    evidence: list[Evidence]
+    search_result: dict[str, Any] | None
+    evidence: list[dict[str, Any]]
     graph_paths: list[list[str]]
     graph_visit_count: int
 
@@ -31,7 +32,7 @@ class AgentState(TypedDict):
     claim_evidence_ids:list[list[str]]
 
     # verifier 워커 결과
-    verification_result : VerificationResult | None
+    verification_result : dict[str, Any] | None
     verification_feedback: str | None
     retry_required:bool
     
@@ -60,6 +61,7 @@ def empty_turn() -> dict:
         "messages": [],
         "question": "",
         "worker": "search",
+        "worker_trace": [],
         "search_mode": None,
         "search_result": None,
         "evidence": [],

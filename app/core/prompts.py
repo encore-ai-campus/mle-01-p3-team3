@@ -1,6 +1,39 @@
 """Supervisor와 Worker가 사용할 프롬프트를 모아 둔 모듈."""
 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+
+AURA_SEARCH_SCHEMA_HINT = """
+Aura schema for Search Worker:
+- Job is the occupation label. Use node.id as the Aura node ID and node.source_id as the job code.
+- Related labels are Major, Ability, and Certificate.
+- Relationship types are RELATED_MAJOR, HAS_CORE_ABILITY, and RELATED_CERTIFICATE.
+- The vector index is job_work_embedding_768 over Job.work_embedding.
+- graph_search and hybrid_search Cypher must be read-only.
+- Graph Cypher should return aliases: node_id, job_code, job_name, relationship, source_field, content, graph_path.
+- source_field must be related_majors, core_abilities, or related_certificates.
+- If returning graph_path, bind the path in MATCH as MATCH p=(...). Never return p unless p was bound.
+- If a path is not needed, omit graph_path from RETURN instead of using an undefined variable.
+
+Example:
+MATCH p=(j:Job)-[:RELATED_MAJOR]->(m:Major)
+WHERE j.source_id IN $job_codes
+RETURN j.id AS node_id, j.source_id AS job_code, j.name AS job_name,
+       m.name AS content, 'RELATED_MAJOR' AS relationship,
+       'related_majors' AS source_field, p AS graph_path
+"""
+
+REASONER_EVIDENCE_HINT = """
+Evidence citation rules for Reasoner:
+- Use only the evidence supplied in the current state.
+- Every claim must cite at least one matching evidence_id when supporting evidence exists.
+- claim_evidence_ids must be a list with the same number of items as claims.
+- Copy evidence_id values exactly, for example CAREER0505:work.
+- Never return empty evidence IDs for a claim that is supported by the supplied evidence.
+- Keep answer_draft concise and state only information directly supported by the supplied evidence.
+- Do not add plausible but uncited duties, skills, tools, or qualifications.
+- When the evidence directly describes the requested occupation, answer the question instead of abstaining.
+"""
 
 
 SUPERVISOR_SYSTEM_PROMPT = """당신은 CareerGraph Supervisor입니다.
@@ -70,6 +103,10 @@ status는 다음 중 하나입니다.
 근거가 부족한 경우 재검색이 필요한지 명확하게 판단합니다."""
 
 
+SEARCH_SYSTEM_PROMPT += AURA_SEARCH_SCHEMA_HINT
+REASONER_SYSTEM_PROMPT += REASONER_EVIDENCE_HINT
+
+
 SUPERVISOR_PROMPT = ChatPromptTemplate.from_messages(
     [
         ("system", SUPERVISOR_SYSTEM_PROMPT),
@@ -114,6 +151,25 @@ VERIFIER_PROMPT = ChatPromptTemplate.from_messages(
         ),
     ]
 )
+
+
+WORKER_PROMPT_TEMPLATES = {
+    "search": ChatPromptTemplate.from_messages([
+        ("system", SEARCH_SYSTEM_PROMPT),
+        MessagesPlaceholder("messages"),
+        ("human", "{instruction}"),
+    ]),
+    "reasoner": ChatPromptTemplate.from_messages([
+        ("system", REASONER_SYSTEM_PROMPT),
+        MessagesPlaceholder("messages"),
+        ("human", "{instruction}"),
+    ]),
+    "verifier": ChatPromptTemplate.from_messages([
+        ("system", VERIFIER_SYSTEM_PROMPT),
+        MessagesPlaceholder("messages"),
+        ("human", "{instruction}"),
+    ]),
+}
 
 
 if __name__ == "__main__":
