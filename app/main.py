@@ -26,6 +26,8 @@ def make_input(question: str) -> dict:
     """사용자 질문을 AgentState 입력 형태로 만든다."""
 
     state = empty_turn()
+    # messages는 checkpointer의 기존 대화에 add_messages로 누적한다.
+    # 나머지 필드는 empty_turn() 값으로 이번 질문을 새로 시작한다.
     state["question"] = question
     state["messages"] = [
         {
@@ -66,6 +68,7 @@ async def run_chat(user_id: str | None, thread_id: str) -> None:
             print("에이전트:", result.get("final_response"))
             print("상태:", result.get("status"))
             print("검색 방식:", result.get("search_mode"))
+            print("워커 흐름:", " → ".join(result.get("worker_trace", [])))
 
 
 def main() -> None:
