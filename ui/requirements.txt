@@ -4,6 +4,10 @@
 # 버전은 로컬 uv.lock 에서 실제로 쓰는 값과 맞춘다.
 
 streamlit==1.59.1
+# starlette 1.8 이상에서는 Streamlit 1.59.1 의 gzip 미들웨어가 응답 헤더를 보내지 않아
+# "Expected ASGI message 'http.response.start'" 500 오류가 난다. 로컬에서 검증한 버전으로 고정한다.
+starlette==1.7.0
+uvicorn==0.53.0
 
 # 에이전트 그래프
 langgraph==1.2.11
