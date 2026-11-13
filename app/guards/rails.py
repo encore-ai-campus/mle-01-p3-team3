@@ -110,12 +110,18 @@ def to_verdict(result) -> dict:
 
 
 # [보조 함수] 입력 레일 판정
-async def check_input(rails: LLMRails, messages: list) -> dict:
-    """대화 기록의 마지막 팬 메시지를 입력 레일로 판정한 판정 기록 dict(to_verdict 와 같은 키)를 돌려준다."""
+async def check_input(rails: LLMRails, messages: list, selected_user_id: str | None = None) -> dict:
+    """대화 기록의 마지막 팬 메시지를 입력 레일로 판정한 판정 기록 dict(to_verdict 와 같은 키)를 돌려준다.
+
+    selected_user_id 는 앱이 선택한 회원 ID 다. member access input 레일이 $selected_user_id 로 읽는다.
+    """
     # 고르기와 판정: 최근 대화를 판정용 메시지로 바꿔 입력 레일만 돌린다(답변 모델은 부르지 않는다)
-    # 턴 시작에 input_rail 노드가 부르므로 마지막 메시지는 늘 이번 턴의 팬 메시지다
-    # 마지막 팬 메시지가 판정 대상($user_message)이다. 앞선 메시지는 NeMo 가 대화 기록(events)으로 바꿔 Jev 입력 층에 넘기므로 나눠 보낸 공격도 본다
-    result = await rails.check_async(recent_rail_messages(messages), rail_types=[RailType.INPUT])
+    # 턴 시작에 input_guard 노드가 부르므로 마지막 메시지는 늘 이번 턴의 사용자 메시지다
+    # 마지막 사용자 메시지가 판정 대상($user_message)이다. 앞선 메시지는 NeMo 가 대화 기록(events)으로 바꿔 Jev 입력 층에 넘기므로 나눠 보낸 공격도 본다
+    # 회원 ID 는 질문에서 가져오지 않고 context 메시지로 맨 앞에 둔다. 빼면 레일이 "$selected_user_id" 글자를 그대로 받는다
+    rail_messages = [{"role": "context", "content": {"selected_user_id": selected_user_id}}]
+    rail_messages.extend(recent_rail_messages(messages))
+    result = await rails.check_async(rail_messages, rail_types=[RailType.INPUT])
 
     # 바꾸기: 앱이 쓰는 판정 기록 dict 로 바꾼다
     return to_verdict(result)

@@ -85,6 +85,42 @@ def _legacy_build_worker_instruction(state: AgentState) -> str:
     )
 
 
+# 워커(LLM)에 넘기는 회원 커리어 필드. 이메일·전화번호·주소·이름은 넘기지 않는다.
+PROFILE_CAREER_FIELDS = (
+    "current_job",
+    "current_major",
+    "current_certificate",
+    "target_job",
+    "target_major",
+    "target_certificate",
+)
+
+
+def profile_career_lines(state: AgentState) -> str:
+    """profile_node 가 SQLite 에서 읽은 본인 커리어만 "- 필드: 값" 줄로 만든다. 없으면 빈 문자열."""
+
+    profile = state.get("user_profile") or {}
+    return "\n".join(
+        f"- {field}: {profile[field]}"
+        for field in PROFILE_CAREER_FIELDS
+        if profile.get(field)
+    )
+
+
+def build_profile_block(state: AgentState) -> str:
+    """본인 커리어를 워커 지시문 블록으로 만든다. 없으면 빈 문자열."""
+
+    lines = profile_career_lines(state)
+    if not lines:
+        return ""
+    return (
+        "Member career profile (selected member's saved data from the DB; "
+        "use these values for 'my current/target job, major, certificate' "
+        "instead of guessing from the conversation):\n"
+        f"{lines}\n"
+    )
+
+
 def build_worker_instruction(state: AgentState, worker_name: str | None = None) -> str:
     """현재 질문과 최근 대화 기록을 워커 지시문으로 만든다."""
 
@@ -110,6 +146,7 @@ def build_worker_instruction(state: AgentState, worker_name: str | None = None) 
         "관련 직업 검색은 이 실제 직업·전공·자격을 대상으로 하며 '내정보'를 직업명으로 검색하지 마세요. "
         "목표 자격을 이미 보유한 자격으로 해석하지 마세요. 프로필도 제공된 근거 ID에 맞춰 인용하세요.\n"
         f"Recent conversation history:\n{history}\n"
+        f"{build_profile_block(state)}"
         f"Search mode: {state.get('search_mode')}\n"
         f"Evidence: {evidence}\n"
         f"Graph paths: {state.get('graph_paths', [])}\n"
@@ -154,19 +191,6 @@ def bind_claim_evidence(
             ids = [available_ids[0]]
         bound.append(list(dict.fromkeys(ids)))
     return bound
-
-
-def make_abstain_update(state: AgentState) -> dict[str, Any]:
-    """보류 응답도 대화 기록에 남긴다."""
-    answer = "현재 자료만으로는 답변을 확정하기 어렵습니다."
-    return {
-        "status": "abstain",
-        "worker": "end",
-        "worker_trace": append_worker_trace(state, "abstain"),
-        "final_response": answer,
-        "messages": [{"role": "assistant", "content": answer}],
-        "error": state.get("error"),
-    }
 
 
 def profile_node(state: AgentState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
@@ -416,28 +440,41 @@ def verifier_node(state: AgentState) -> dict[str, Any]:
     }
 
 
-def output_node(state: AgentState) -> dict[str, Any]:
-    """최종 답변을 반환하고 다음 질문을 위해 대화에 기록한다."""
-    answer = str(state.get("answer_draft") or "")
-    return {
-        "final_response": answer,
-        "messages": [{"role": "assistant", "content": answer}],
-        "worker": "end",
-        "worker_trace": append_worker_trace(state, "output"),
-        "status": "supported",
-    }
+def reply_messages(text: str) -> list[AIMessage]:
+    """사용자에게 보낸 최종 문장을 다음 턴 대화 기록에 남길 메시지로 만든다."""
+
+    return [AIMessage(content=text)]
 
 
-def abstain_node(state: AgentState) -> dict[str, Any]:
-    """근거 부족 또는 처리 상한 도달 시 보류 응답을 만든다."""
+def stop_at_input_guard(
+    state: AgentState,
+    guard_status: str,
+    rule_id: str | None,
+    guard_error: str | None,
+    reply: str,
+    status: str,
+) -> Command:
+    """입력 검사에서 턴을 끝낸다. 안내 문장은 대화 기록에도 남긴다."""
 
-    return make_abstain_update(state)
+    return Command(
+        goto=END,
+        update={
+            "input_guard_status": guard_status,
+            "input_guard_rule": rule_id,
+            "input_guard_error": guard_error,
+            "final_response": reply,
+            "messages": reply_messages(reply),
+            "status": status,
+            "worker_trace": append_worker_trace(state, "input_guard"),
+        },
+    )
+
 
 async def input_guard_node(
     state: AgentState,
     runtime: Runtime[ChatContext],
-) -> Command[Literal["supervisor", "__end__"]]:
-    """사용자 질문을 검사하고 통과한 경우에만 Supervisor로 보낸다."""
+) -> Command[Literal["profile_check", "__end__"]]:
+    """사용자 질문을 검사하고 통과한 경우에만 Graph RAG(profile_check)로 보낸다."""
 
     rails = runtime.context.rails
     question = state.get("question", "").strip()
@@ -445,157 +482,81 @@ async def input_guard_node(
 
     # 검사 객체, 질문 또는 메시지가 없으면 통과시키지 않는다.
     if rails is None or not question or not messages:
-        return Command(
-            goto=END,
-            update={
-                "input_guard_status": "error",
-                "input_guard_rule": None,
-                "input_guard_error": "missing_input_or_rails",
-                "final_response": GUARD_ERROR_REPLY,
-                "status": "error",
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
-            },
+        return stop_at_input_guard(
+            state, "error", None, "missing_input_or_rails", GUARD_ERROR_REPLY, "error",
         )
 
-    # 현재 check_input()은 LangChain HumanMessage를 기대한다.
+    # check_input()은 LangChain HumanMessage를 기대한다.
     # 마지막 메시지가 이번 질문과 동일한지 확인한다.
     last_message = messages[-1]
-
     if (
         getattr(last_message, "type", None) != "human"
         or getattr(last_message, "text", None) != question
     ):
-        return Command(
-            goto=END,
-            update={
-                "input_guard_status": "error",
-                "input_guard_rule": None,
-                "input_guard_error": "invalid_input_message",
-                "final_response": GUARD_ERROR_REPLY,
-                "status": "error",
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
-            },
+        return stop_at_input_guard(
+            state, "error", None, "invalid_input_message", GUARD_ERROR_REPLY, "error",
         )
 
     try:
+        # 회원 접근 레일(member access input)이 비교할 수 있게 선택한 회원 ID를 함께 넘긴다.
         verdict = await check_input(
             rails=rails,
             messages=messages,
+            selected_user_id=runtime.context.user_id,
         )
-
     except Exception:
-        # 예외 원문에 민감한 내용이 섞일 수 있으므로
-        # 상태에는 오류 유형만 남긴다.
-        return Command(
-            goto=END,
-            update={
-                "input_guard_status": "error",
-                "input_guard_rule": None,
-                "input_guard_error": "rail_execution_error",
-                "final_response": GUARD_ERROR_REPLY,
-                "status": "error",
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
-            },
+        # 예외 원문에 민감한 내용이 섞일 수 있으므로 상태에는 오류 유형만 남긴다.
+        return stop_at_input_guard(
+            state, "error", None, "rail_execution_error", GUARD_ERROR_REPLY, "error",
         )
 
     guard_status = verdict.get("status")
     rule_id = verdict.get("rule_id") or None
 
-    # 기존 rails.py는 규칙 표시가 없는 차단을 RAIL-ERROR로
-    # 변환한다. 실제 원인이 모호할 수 있으므로 오류로 처리한다.
+    # rails.py는 규칙 표시가 없는 차단을 RAIL-ERROR로 바꾼다.
+    # 실제 원인이 모호할 수 있으므로 오류로 처리한다.
     if rule_id == "RAIL-ERROR":
-        return Command(
-            goto=END,
-            update={
-                "input_guard_status": "error",
-                "input_guard_rule": rule_id,
-                "input_guard_error": "unclassified_rail_error",
-                "final_response": GUARD_ERROR_REPLY,
-                "status": "error",
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
-            },
+        return stop_at_input_guard(
+            state, "error", rule_id, "unclassified_rail_error", GUARD_ERROR_REPLY, "error",
         )
 
     if guard_status == "passed":
+        # 입력 검사를 통과한 질문만 Graph RAG 흐름(profile_check)으로 들어간다.
         return Command(
-            goto="supervisor",
+            goto="profile_check",
             update={
                 "input_guard_status": "passed",
                 "input_guard_rule": None,
                 "input_guard_error": None,
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
+                "worker_trace": append_worker_trace(state, "input_guard"),
             },
         )
 
+    # AgentState.status에 "blocked"가 없으므로 에이전트 상태와 가드레일 상태를 분리한다.
     if guard_status == "blocked":
-        return Command(
-            goto=END,
-            update={
-                "input_guard_status": "blocked",
-                "input_guard_rule": rule_id,
-                "input_guard_error": None,
-                "final_response": INPUT_BLOCKED_REPLY,
-                # 기존 AgentState.status에 "blocked"가 없으므로
-                # 에이전트 상태와 가드레일 상태를 분리한다.
-                "status": "abstain",
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
-            },
+        return stop_at_input_guard(
+            state, "blocked", rule_id, None, INPUT_BLOCKED_REPLY, "abstain",
         )
 
     if guard_status == "modified":
-        return Command(
-            goto=END,
-            update={
-                "input_guard_status": "modified",
-                "input_guard_rule": rule_id,
-                "input_guard_error": None,
-                "final_response": INPUT_MODIFIED_REPLY,
-                "status": "abstain",
-                "worker_trace": append_worker_trace(
-                    state,
-                    "input_guard",
-                ),
-            },
+        return stop_at_input_guard(
+            state, "modified", rule_id, None, INPUT_MODIFIED_REPLY, "abstain",
         )
 
     # 예상하지 못한 상태도 통과시키지 않는다.
-    return Command(
-        goto=END,
-        update={
-            "input_guard_status": "error",
-            "input_guard_rule": rule_id,
-            "input_guard_error": "unknown_rail_status",
-            "final_response": GUARD_ERROR_REPLY,
-            "status": "error",
-            "worker_trace": append_worker_trace(
-                state,
-                "input_guard",
-            ),
-        },
+    return stop_at_input_guard(
+        state, "error", rule_id, "unknown_rail_status", GUARD_ERROR_REPLY, "error",
     )
 
 def build_guard_documents(state: AgentState) -> str:
-    """검색 근거를 출력 검사에 전달할 문자열로 만든다."""
+    """검색 근거와 조회한 본인 커리어를 출력 검사(사실 대조)에 전달할 문자열로 만든다."""
 
     documents = []
+
+    # 답변이 DB 에서 읽은 본인 커리어(예: 목표 직업)를 말하면 사실 대조가 그 근거도 봐야 한다.
+    career_lines = profile_career_lines(state)
+    if career_lines:
+        documents.append(f"[member_profile]\n{career_lines}")
 
     for evidence in state.get("evidence", []):
         evidence_id = evidence.get("evidence_id")
@@ -611,6 +572,30 @@ def build_guard_documents(state: AgentState) -> str:
 
     return "\n\n".join(documents)
 
+
+def finish_output_guard(
+    state: AgentState,
+    guard_status: str,
+    rule_id: str | None,
+    guard_error: str | None,
+    reply: str,
+    status: str | None,
+) -> dict[str, Any]:
+    """출력 검사 결과로 최종 응답을 정하고 대화 기록에 남긴다. status가 None이면 기존 상태를 둔다."""
+
+    update = {
+        "output_guard_status": guard_status,
+        "output_guard_rule": rule_id,
+        "output_guard_error": guard_error,
+        "final_response": reply,
+        "messages": reply_messages(reply),
+        "worker_trace": append_worker_trace(state, "output_guard"),
+    }
+    if status is not None:
+        update["status"] = status
+    return update
+
+
 async def output_guard_node(
     state: AgentState,
     runtime: Runtime[ChatContext],
@@ -621,23 +606,13 @@ async def output_guard_node(
     candidate = (state.get("answer_draft") or "").strip()
 
     if rails is None or not candidate:
-        return {
-            "output_guard_status": "error",
-            "output_guard_rule": None,
-            "output_guard_error": "missing_output_or_rails",
-            "final_response": GUARD_ERROR_REPLY,
-            "status": "error",
-            "worker_trace": append_worker_trace(
-                state,
-                "output_guard",
-            ),
-        }
+        return finish_output_guard(
+            state, "error", None, "missing_output_or_rails", GUARD_ERROR_REPLY, "error",
+        )
 
-    # 현재 check_output()은 LangChain 메시지 목록을 받는다.
+    # check_output()은 LangChain 메시지 목록을 받는다.
     # 검사할 답변을 AIMessage로 명시적으로 붙인다.
-    #
-    # 이 목록은 검사에만 전달하며, 검사 전 초안을
-    # state["messages"]나 화면에 추가하지 않는다.
+    # 이 목록은 검사에만 전달하며, 검사 전 초안을 state["messages"]에 추가하지 않는다.
     guard_messages = [
         *state.get("messages", []),
         AIMessage(content=candidate),
@@ -651,79 +626,32 @@ async def output_guard_node(
             messages=guard_messages,
             documents_text=documents_text,
         )
-
     except Exception:
-        return {
-            "output_guard_status": "error",
-            "output_guard_rule": None,
-            "output_guard_error": "rail_execution_error",
-            "final_response": GUARD_ERROR_REPLY,
-            "status": "error",
-            "worker_trace": append_worker_trace(
-                state,
-                "output_guard",
-            ),
-        }
+        return finish_output_guard(
+            state, "error", None, "rail_execution_error", GUARD_ERROR_REPLY, "error",
+        )
 
     guard_status = verdict.get("status")
     rule_id = verdict.get("rule_id") or None
 
     if rule_id == "RAIL-ERROR":
-        return {
-            "output_guard_status": "error",
-            "output_guard_rule": rule_id,
-            "output_guard_error": "unclassified_rail_error",
-            "final_response": GUARD_ERROR_REPLY,
-            "status": "error",
-            "worker_trace": append_worker_trace(
-                state,
-                "output_guard",
-            ),
-        }
+        return finish_output_guard(
+            state, "error", rule_id, "unclassified_rail_error", GUARD_ERROR_REPLY, "error",
+        )
 
     if guard_status == "passed":
-        return {
-            "output_guard_status": "passed",
-            "output_guard_rule": None,
-            "output_guard_error": None,
-            "final_response": candidate,
-            # supported 또는 abstain 등 기존 상태는 그대로 둔다.
-            "worker_trace": append_worker_trace(
-                state,
-                "output_guard",
-            ),
-        }
+        # supported 또는 abstain 등 기존 상태는 그대로 둔다.
+        return finish_output_guard(state, "passed", None, None, candidate, None)
 
     if guard_status in {"blocked", "modified"}:
-        return {
-            "output_guard_status": guard_status,
-            "output_guard_rule": rule_id,
-            "output_guard_error": None,
-            "final_response": OUTPUT_BLOCKED_REPLY,
-            "status": "abstain",
-            "worker_trace": append_worker_trace(
-                state,
-                "output_guard",
-            ),
-        }
+        return finish_output_guard(
+            state, guard_status, rule_id, None, OUTPUT_BLOCKED_REPLY, "abstain",
+        )
 
-    return {
-        "output_guard_status": "error",
-        "output_guard_rule": rule_id,
-        "output_guard_error": "unknown_rail_status",
-        "final_response": GUARD_ERROR_REPLY,
-        "status": "error",
-        "worker_trace": append_worker_trace(
-            state,
-            "output_guard",
-        ),
-    }
+    return finish_output_guard(
+        state, "error", rule_id, "unknown_rail_status", GUARD_ERROR_REPLY, "error",
+    )
 
-def output_node(state: AgentState) -> dict[str, Any]:
-    return {
-        "final_response": state.get("answer_draft"),
-        ...
-    }
 
 def output_node(state: AgentState) -> dict[str, Any]:
     """검증된 답변 후보를 출력 가드레일로 넘긴다."""

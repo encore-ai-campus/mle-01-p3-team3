@@ -49,9 +49,11 @@ def build_app(checkpointer=None, interrupt_before=None):
 
     builder.add_node("output_guard", output_guard_node)
 
-    # 시작점
+    # 시작점: 입력 검사가 관문이다.
+    # input_guard_node 가 Command(goto="profile_check") 로 통과한 질문만 Graph RAG 로 보내고,
+    # 차단·오류면 END 로 끝낸다. START 에서 profile_check 로 바로 가는 엣지를 두면
+    # 두 노드가 병렬로 돌아 차단이 무시되고 worker_trace 동시 갱신 오류가 난다.
     builder.add_edge(START, "input_guard")
-    builder.add_edge(START, "profile_check")
     builder.add_conditional_edges("profile_check", route_profile, {
         "profile": "profile",
         "search": "search",
