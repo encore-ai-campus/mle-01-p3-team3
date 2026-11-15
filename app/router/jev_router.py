@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from functools import lru_cache
 from typing import cast
 
@@ -173,6 +174,44 @@ def selected_tool_and_planner(mode: SearchMode):
     return tool, planner
 
 
+@lru_cache(maxsize=1)
+def canonical_job_patterns():
+    """적재 원본의 직업명으로 공백 차이만 허용하는 패턴을 만든다."""
+    path = PROJECT_DIR / "data/expanded_20261108/jobs.json"
+    rows = json.loads(path.read_text(encoding="utf-8-sig"))
+    entries = []
+    for row in rows:
+        name = str(row.get("job_name") or "").strip()
+        code = row.get("job_code")
+        # 전공은 실제 직업명이기도 하지만 학과 질문의 일반 용어와 겹쳐 자동 식별에서 제외한다.
+        if not name or code is None or name == "전공":
+            continue
+        compact = "".join(name.split())
+        pattern = re.compile(
+            r"(?<!\w)" + r"\s*".join(re.escape(c) for c in compact)
+            + r"(?=$|[\s,.!?]|(?:의|은|는|이|가|을|를|와|과|으로|로|에게|에|도)(?:\s|$))",
+            re.IGNORECASE,
+        )
+        entries.append((pattern, {"job_name": name, "job_code": str(code), "node_id": "job:" + str(code)}))
+    return entries
+
+
+def canonical_job_hints(question: str) -> list[dict]:
+    """현재 질문에 명시된 직업만 찾는다. 유사 직업을 추측하지 않는다."""
+    matches = []
+    for pattern, job in canonical_job_patterns():
+        for match in pattern.finditer(question):
+            matches.append((match.start(), match.end(), job))
+    # 더 긴 정식 직업명이 있으면 그 안에 포함된 짧은 직업명은 제외한다.
+    selected = []
+    for start, end, job in matches:
+        if any(a <= start and end <= b and (a < start or end < b) for a, b, _ in matches):
+            continue
+        if job not in selected:
+            selected.append(job)
+    return selected
+
+
 async def run_jev_search(
     state: dict,
     worker_messages: list,
@@ -181,7 +220,17 @@ async def run_jev_search(
     mode = await classify_search(state)
     tool, planner = selected_tool_and_planner(mode)
 
+    job_hints = canonical_job_hints(str(state.get("question") or ""))
     instruction = SEARCH_SYSTEM_PROMPT + f"""
+
+[원본 데이터에서 확인한 직업 표기]
+{json.dumps(job_hints, ensure_ascii=False)}
+위 항목은 질문에 명시된 직업명과 공백 차이만 허용해 대조한 결과다.
+해당 직업을 조회할 때 사용자 입력의 이름 대신 위 node_id로 Job을 식별한다.
+조회 시작점 식별에 사용하고, 다른 직업을 찾는 질문의 최종 결과를 이 ID로 제한하지 않는다.
+일치 항목이 없다고 비슷한 이름의 직업을 임의로 대신 사용하지 않는다.
+능력·역량은 HAS_CORE_ABILITY, 자격은 RELATED_CERTIFICATE로 구분한다.
+학과를 통해 다른 직업과 능력을 물으면 Major <- Job -> Ability 방향으로 조회한다.
 
 [이번 호출의 확정 사항]
 검색 방식은 이미 Jev가 {mode}로 결정했다.

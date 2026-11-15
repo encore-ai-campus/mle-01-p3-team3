@@ -26,6 +26,10 @@ RETURN j.id AS node_id, j.source_id AS job_code, j.name AS job_name,
 REASONER_EVIDENCE_HINT = """
 Evidence citation rules for Reasoner:
 - Use only the evidence supplied in the current state.
+- Keep related majors, certificates, and core abilities separate. Use relationship/source_field metadata to label them.
+- RELATED_CERTIFICATE is a related certificate, not a core ability or a mandatory hiring requirement.
+- HAS_CORE_ABILITY is a core ability; do not describe certificates as abilities.
+- Address every requested part of the question; explicitly state which requested parts lack evidence.
 - Every claim must cite at least one matching evidence_id when supporting evidence exists.
 - claim_evidence_ids must be a list with the same number of items as claims.
 - Copy evidence_id values exactly, for example CAREER0505:work.
