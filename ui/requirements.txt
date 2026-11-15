@@ -28,6 +28,7 @@ guardrails-ai==0.11.0
 
 # Neo4j Aura 검색
 neo4j==6.2.0
+certifi==2026.7.22                   # app/tools/search.py 가 Aura 인증서 검증에 쓴다
 
 # 설정
 pydantic==2.13.5

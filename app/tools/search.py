@@ -6,8 +6,9 @@ import re
 from functools import lru_cache
 from typing import Any
 
+import certifi
 from langchain_core.tools import tool
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, TrustCustomCAs
 from neo4j.exceptions import Neo4jError
 from neo4j.graph import Node, Path as Neo4jPath, Relationship
 
@@ -52,15 +53,36 @@ def _job_row_map() -> dict[str, str]:
     }
 
 
+def _driver_target(uri: str) -> tuple[str, dict[str, Any]]:
+    """접속 주소와 암호화 옵션을 정한다.
+
+    neo4j+s:// 는 운영체제 인증서 저장소로만 검증한다. Windows 저장소에는 Aura 인증서의
+    루트(SSL.com TLS RSA Root CA 2022)가 없는 경우가 있어 'Unable to retrieve routing
+    information' 으로 접속이 실패한다. 그래서 +s 주소는 기본 스킴으로 바꾸고, 암호화와
+    검증은 그대로 켠 채 certifi 인증서 묶음을 신뢰 목록으로 쓴다.
+    그 밖의 스킴(neo4j://, bolt://, +ssc)은 주소에 적힌 설정을 그대로 따른다.
+    """
+
+    scheme, separator, rest = uri.partition("://")
+    if separator and scheme.endswith("+s"):
+        return f"{scheme[:-2]}://{rest}", {
+            "encrypted": True,
+            "trusted_certificates": TrustCustomCAs(certifi.where()),
+        }
+    return uri, {}
+
+
 def _get_driver():
     """환경변수 설정을 확인한 뒤 Neo4j Driver를 만든다."""
 
     if not NEO4J_URI or NEO4J_PASSWORD is None:
         raise RuntimeError("NEO4J_URI와 NEO4J_PASSWORD를 먼저 설정하세요.")
 
+    uri, security = _driver_target(NEO4J_URI)
     return GraphDatabase.driver(
-        NEO4J_URI,
+        uri,
         auth=(NEO4J_USER, NEO4J_PASSWORD.get_secret_value()),
+        **security,
     )
 
 
