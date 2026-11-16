@@ -15,10 +15,27 @@ define bot refuse to respond
 
 # ===== 입력 레일 =====
 
+# 입력 마지막 층: 위기 신호면 상담 안내(CRI-*)로, 서비스 범위 밖이면 범위 안내(OOS-07)로 답하고 멈춘다(검색하지 않는다)
+# 정책 층 뒤에 둔다. 앞에 두면 공격 요청을 범위 밖으로 먼저 잡아 거절 규칙이 IN-* 대신 범위 안내가 된다
+# 위기를 먼저 본다. 위기 신호가 있는 질문은 범위 밖이어도 상담 안내가 가야 한다
+# 범위 밖 기준값은 0.6 이다. 0.5 면 '판사는 형사사건을 어떻게 다루나요?' 같은 직업 질문이 걸릴 수 있다(평가: 정상 최대 0.41, 범위 밖 최소 0.83)
+define subflow topic input
+  $verdict = execute topic_input(text=$user_message)
+  if $verdict["crisis"] > 0.5
+    $reply = $verdict["crisis_reply"]
+    $rule_id = $verdict["crisis_rule_id"]
+    bot refuse with rule
+    stop
+  if $verdict["out_of_scope"] > 0.6
+    $reply = $verdict["scope_reply"]
+    $rule_id = $verdict["scope_rule_id"]
+    bot refuse with rule
+    stop
+
 # 입력 정책을 어길 확률이 기준값 0.5 를 넘으면 막는다. 규칙 id 는 persona.yaml 입력 정책 id(예: IN-05)
 # 액션은 NeMo 가 넘겨 주는 대화 기록(events)에서 앞선 팬 메시지도 함께 읽는다
 define subflow jev policy input
-  $verdict = execute jev_policy_input(text=$user_message)
+  $verdict = execute jev_policy_input(text=$user_message, selected_user_id=$selected_user_id)
   if $verdict["probability"] > 0.5
     $reply = $verdict["reply"]
     $rule_id = $verdict["rule_id"]

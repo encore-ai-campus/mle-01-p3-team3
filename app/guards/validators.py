@@ -16,6 +16,13 @@ RRN_PATTERN = re.compile(r"(?<!\d)\d{6}-?[1-4]\d{6}(?!\d)")          # 주민등
 PHONE_PATTERN = re.compile(r"(?<!\d)01[016789]-?\d{3,4}-?\d{4}(?!\d)")  # 휴대전화 번호
 EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")  # 이메일 주소
 LINK_PATTERN = re.compile(r"https?://([A-Za-z0-9.-]+)")               # 링크 도메인
+# http:// 없이 www. 로 시작하는 링크. 이메일(@ 뒤)이나 다른 도메인의 일부(. 뒤)는 제외한다
+BARE_LINK_PATTERN = re.compile(r"(?<![\w@./-])(www\.[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)")
+# 도로명 주소: 시·도로 시작하고, 시·군·구 다음에 도로명(로·길)과 건물 번호가 오는 모양
+ADDRESS_PATTERN = re.compile(
+    r"(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|충청북|충청남|전북|전남|전라북|전라남|경북|경남|경상북|경상남|제주)"
+    r"[가-힣]*\s+(?:[가-힣]+(?:시|군|구)\s+){1,2}[가-힣0-9]+(?:로|길)\s*\d+(?:-\d+)?"
+)
 # TODO(함께 따라하기): 운영팀 코드 정규식 STAFF_CODE_PATTERN 을 이 자리에 둔다(아래 has_staff_code 의 1단계)
 
 # 검색 문서에서 숨은 지시로 보는 모양: 봇에게 내리는 안내 머리, 앞의 규칙을 뒤집는 말, 링크
@@ -28,8 +35,9 @@ HIDDEN_INSTRUCTION_PATTERNS = [
 
 # [보조 함수] 개인정보 가리기
 def mask_pii(text: str) -> str:
-    """주민등록번호, 휴대전화 번호, 이메일 주소를 표시 글자([전화번호] 등)로 바꾼 문장을 돌려준다."""
-    masked = RRN_PATTERN.sub("[주민등록번호]", text)
+    """주민등록번호, 휴대전화 번호, 이메일 주소, 도로명 주소를 표시 글자([전화번호] 등)로 바꾼 문장을 돌려준다."""
+    masked = ADDRESS_PATTERN.sub("[주소]", text)
+    masked = RRN_PATTERN.sub("[주민등록번호]", masked)
     masked = PHONE_PATTERN.sub("[전화번호]", masked)
     masked = EMAIL_PATTERN.sub("[이메일]", masked)
     return masked
@@ -49,7 +57,7 @@ class KoreanPII(Validator):
             return PassResult()
 
         # 개인정보가 있으면 실패로 알리고 가린 문장을 고친 값으로 준다(on_fail=FIX 라 이 값으로 바뀐다)
-        return FailResult(error_message="답변에 개인정보(주민등록번호, 휴대전화 번호, 이메일)가 있습니다.", fix_value=masked)
+        return FailResult(error_message="답변에 개인정보(주민등록번호, 휴대전화 번호, 이메일, 주소)가 있습니다.", fix_value=masked)
 
 
 # [검증기] 허용 링크
@@ -66,7 +74,10 @@ class AllowedLinks(Validator):
         """링크 도메인이 모두 허용 목록 안이면 PassResult 를, 밖의 도메인이 있으면 FailResult 를 돌려준다."""
         # 답의 링크마다 도메인을 꺼내 허용 목록에 없는 것만 모은다
         unknown_domains = []
-        for domain in LINK_PATTERN.findall(value):
+        # 문장 끝 마침표가 도메인에 붙지 않게 떼고, http:// 없이 쓴 www. 링크도 함께 본다
+        domains = [domain.rstrip(".") for domain in LINK_PATTERN.findall(value)]
+        domains.extend(BARE_LINK_PATTERN.findall(value))
+        for domain in domains:
             if domain not in self.domains:
                 unknown_domains.append(domain)
 
@@ -111,10 +122,14 @@ def has_staff_code(text: str) -> bool:
 
 
 # [보조 함수] 숨은 지시 찾기
-def has_hidden_instruction(text: str) -> bool:
-    """글에 숨은 지시 모양(HIDDEN_INSTRUCTION_PATTERNS)이 하나라도 있으면 True, 없으면 False 를 돌려준다."""
+def has_hidden_instruction(text: str, include_links: bool = True) -> bool:
+    """글에 숨은 지시 모양(HIDDEN_INSTRUCTION_PATTERNS)이 하나라도 있으면 True, 없으면 False 를 돌려준다.
+
+    include_links=False 면 링크 모양은 보지 않는다(링크는 출력 레일의 허용 링크 검사가 막는다).
+    """
+    patterns = HIDDEN_INSTRUCTION_PATTERNS if include_links else HIDDEN_INSTRUCTION_PATTERNS[:-1]
     # 모양 하나라도 맞으면 바로 True 다
-    for pattern in HIDDEN_INSTRUCTION_PATTERNS:
+    for pattern in patterns:
         if pattern.search(text):
             return True
 

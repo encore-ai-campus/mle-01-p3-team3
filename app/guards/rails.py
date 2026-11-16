@@ -159,6 +159,21 @@ def filter_documents(docs: list) -> dict:
     return {"kept": kept, "dropped_ids": dropped_ids}
 
 
+# [보조 함수] 그래프 검색 근거 거르기(search 노드가 부른다)
+def filter_evidence(evidence: list) -> dict:
+    """검색 근거 dict 목록을 걸러 {"kept": 남긴 근거 목록, "dropped_ids": 뺀 근거 id 목록} 을 돌려준다."""
+    # filter_documents 와 같은 검사지만 그래프 검색 근거(dict)를 받는다
+    # 링크 모양은 보지 않는다. 링크만 있는 정상 근거를 버리지 않고, 답변의 링크는 출력 레일 허용 링크 검사가 막는다
+    kept = []
+    dropped_ids = []
+    for item in evidence:
+        if has_hidden_instruction(str(item.get("content") or ""), include_links=False):
+            dropped_ids.append(item.get("evidence_id") or "")
+        else:
+            kept.append(item)
+    return {"kept": kept, "dropped_ids": dropped_ids}
+
+
 if __name__ == "__main__":
     # 해당 모듈 테스트: uv run -m app.guards.rails
     # 설정 폴더와 메시지 변환만 확인한다. 실제 판정(check_input)은 분류 모델과 Jev 를 부른다
