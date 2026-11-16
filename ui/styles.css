@@ -32,6 +32,10 @@ header[data-testid="stHeader"] { background: transparent; height: 0; }
 .st-key-question_0 button { background: #fff0e7; }
 .st-key-question_1 button { background: #f0eaff; }
 .st-key-question_2 button { background: #e6f6ed; }
+.st-key-question_3 button { background: #fff6d9; }
+.st-key-question_4 button { background: #ffe8ee; }
+[class*="st-key-question_"] button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+[class*="st-key-question_"] button { min-height: 190px; }
 [class*="st-key-question_"] button:hover { transform: translateY(-3px); box-shadow: 0 6px 14px #123d3310; color: #006f60; }
 [class*="st-key-question_"] button:focus-visible { outline: 3px solid #138575; outline-offset: 3px; }
 [class*="st-key-question_"] button [data-testid="stIconMaterial"] { font-size: 28px; }

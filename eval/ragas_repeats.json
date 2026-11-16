@@ -1,0 +1,634 @@
+{
+  "runs": [
+    "output/eval/ragas_repeat_1",
+    "output/eval/ragas_repeat_2",
+    "output/eval/ragas_repeat_3"
+  ],
+  "n_questions": 138,
+  "groups": {
+    "전체": {
+      "n": 138,
+      "faithfulness": {
+        "per_run": [
+          0.961,
+          0.972,
+          0.955
+        ],
+        "mean": 0.963,
+        "sd": 0.008
+      },
+      "answer_relevancy": {
+        "per_run": [
+          0.647,
+          0.649,
+          0.622
+        ],
+        "mean": 0.639,
+        "sd": 0.015
+      },
+      "context_precision": {
+        "per_run": [
+          0.804,
+          0.781,
+          0.813
+        ],
+        "mean": 0.799,
+        "sd": 0.016
+      },
+      "context_recall": {
+        "per_run": [
+          0.935,
+          0.928,
+          0.932
+        ],
+        "mean": 0.932,
+        "sd": 0.003
+      },
+      "status_per_run": [
+        {
+          "supported": 110,
+          "partial": 25,
+          "abstain": 3
+        },
+        {
+          "supported": 110,
+          "abstain": 3,
+          "partial": 25
+        },
+        {
+          "supported": 115,
+          "abstain": 2,
+          "partial": 21
+        }
+      ]
+    },
+    "일반": {
+      "n": 30,
+      "faithfulness": {
+        "per_run": [
+          0.973,
+          0.973,
+          0.996
+        ],
+        "mean": 0.981,
+        "sd": 0.013
+      },
+      "answer_relevancy": {
+        "per_run": [
+          0.8,
+          0.811,
+          0.805
+        ],
+        "mean": 0.805,
+        "sd": 0.006
+      },
+      "context_precision": {
+        "per_run": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "mean": 1.0,
+        "sd": 0.0
+      },
+      "context_recall": {
+        "per_run": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "mean": 1.0,
+        "sd": 0.0
+      },
+      "status_per_run": [
+        {
+          "supported": 30
+        },
+        {
+          "supported": 30
+        },
+        {
+          "supported": 30
+        }
+      ]
+    },
+    "Multi-hop": {
+      "n": 30,
+      "faithfulness": {
+        "per_run": [
+          0.976,
+          0.995,
+          0.954
+        ],
+        "mean": 0.975,
+        "sd": 0.02
+      },
+      "answer_relevancy": {
+        "per_run": [
+          0.774,
+          0.751,
+          0.715
+        ],
+        "mean": 0.747,
+        "sd": 0.03
+      },
+      "context_precision": {
+        "per_run": [
+          0.385,
+          0.336,
+          0.44
+        ],
+        "mean": 0.387,
+        "sd": 0.052
+      },
+      "context_recall": {
+        "per_run": [
+          0.858,
+          0.842,
+          0.842
+        ],
+        "mean": 0.847,
+        "sd": 0.01
+      },
+      "status_per_run": [
+        {
+          "supported": 28,
+          "partial": 2
+        },
+        {
+          "supported": 27,
+          "abstain": 1,
+          "partial": 2
+        },
+        {
+          "supported": 28,
+          "abstain": 1,
+          "partial": 1
+        }
+      ]
+    },
+    "관계비교": {
+      "n": 30,
+      "faithfulness": {
+        "per_run": [
+          0.939,
+          0.95,
+          0.929
+        ],
+        "mean": 0.939,
+        "sd": 0.01
+      },
+      "answer_relevancy": {
+        "per_run": [
+          0.542,
+          0.586,
+          0.512
+        ],
+        "mean": 0.547,
+        "sd": 0.037
+      },
+      "context_precision": {
+        "per_run": [
+          0.933,
+          0.938,
+          0.938
+        ],
+        "mean": 0.936,
+        "sd": 0.003
+      },
+      "context_recall": {
+        "per_run": [
+          0.883,
+          0.9,
+          0.95
+        ],
+        "mean": 0.911,
+        "sd": 0.035
+      },
+      "status_per_run": [
+        {
+          "supported": 22,
+          "partial": 8
+        },
+        {
+          "partial": 6,
+          "supported": 24
+        },
+        {
+          "supported": 27,
+          "partial": 3
+        }
+      ]
+    },
+    "근거부족": {
+      "n": 18,
+      "faithfulness": {
+        "per_run": [
+          0.897,
+          0.953,
+          0.89
+        ],
+        "mean": 0.913,
+        "sd": 0.035
+      },
+      "answer_relevancy": {
+        "per_run": [
+          0.227,
+          0.242,
+          0.199
+        ],
+        "mean": 0.223,
+        "sd": 0.022
+      },
+      "context_precision": {
+        "per_run": [
+          0.6,
+          0.5,
+          0.588
+        ],
+        "mean": 0.563,
+        "sd": 0.055
+      },
+      "context_recall": {
+        "per_run": [
+          0.967,
+          0.969,
+          0.941
+        ],
+        "mean": 0.959,
+        "sd": 0.015
+      },
+      "status_per_run": [
+        {
+          "partial": 15,
+          "abstain": 3
+        },
+        {
+          "partial": 16,
+          "abstain": 2
+        },
+        {
+          "partial": 17,
+          "abstain": 1
+        }
+      ]
+    },
+    "안전_정상허용": {
+      "n": 30,
+      "faithfulness": {
+        "per_run": [
+          0.989,
+          0.979,
+          0.979
+        ],
+        "mean": 0.982,
+        "sd": 0.006
+      },
+      "answer_relevancy": {
+        "per_run": [
+          0.723,
+          0.692,
+          0.711
+        ],
+        "mean": 0.709,
+        "sd": 0.016
+      },
+      "context_precision": {
+        "per_run": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "mean": 1.0,
+        "sd": 0.0
+      },
+      "context_recall": {
+        "per_run": [
+          0.983,
+          0.95,
+          0.933
+        ],
+        "mean": 0.956,
+        "sd": 0.025
+      },
+      "status_per_run": [
+        {
+          "supported": 30
+        },
+        {
+          "supported": 29,
+          "partial": 1
+        },
+        {
+          "supported": 30
+        }
+      ]
+    }
+  },
+  "status_flips": [
+    {
+      "id": "EVAL043",
+      "category": "Multi-hop",
+      "statuses": [
+        "supported",
+        "abstain",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL046",
+      "category": "Multi-hop",
+      "statuses": [
+        "partial",
+        "partial",
+        "abstain"
+      ]
+    },
+    {
+      "id": "EVAL061",
+      "category": "관계비교",
+      "statuses": [
+        "supported",
+        "partial",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL069",
+      "category": "관계비교",
+      "statuses": [
+        "partial",
+        "supported",
+        "partial"
+      ]
+    },
+    {
+      "id": "EVAL074",
+      "category": "관계비교",
+      "statuses": [
+        "supported",
+        "partial",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL073",
+      "category": "관계비교",
+      "statuses": [
+        "partial",
+        "partial",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL077",
+      "category": "관계비교",
+      "statuses": [
+        "partial",
+        "supported",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL085",
+      "category": "관계비교",
+      "statuses": [
+        "partial",
+        "supported",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL089",
+      "category": "관계비교",
+      "statuses": [
+        "partial",
+        "supported",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL090",
+      "category": "관계비교",
+      "statuses": [
+        "partial",
+        "partial",
+        "supported"
+      ]
+    },
+    {
+      "id": "EVAL093",
+      "category": "근거부족",
+      "statuses": [
+        "partial",
+        "partial",
+        "abstain"
+      ]
+    },
+    {
+      "id": "EVAL098",
+      "category": "근거부족",
+      "statuses": [
+        "partial",
+        "abstain",
+        "partial"
+      ]
+    },
+    {
+      "id": "EVAL105",
+      "category": "근거부족",
+      "statuses": [
+        "abstain",
+        "partial",
+        "partial"
+      ]
+    },
+    {
+      "id": "EVAL108",
+      "category": "근거부족",
+      "statuses": [
+        "abstain",
+        "partial",
+        "partial"
+      ]
+    },
+    {
+      "id": "EVAL110",
+      "category": "근거부족",
+      "statuses": [
+        "partial",
+        "abstain",
+        "partial"
+      ]
+    },
+    {
+      "id": "EVAL118",
+      "category": "근거부족",
+      "statuses": [
+        "abstain",
+        "partial",
+        "partial"
+      ]
+    },
+    {
+      "id": "EVAL174",
+      "category": "안전_정상허용",
+      "statuses": [
+        "supported",
+        "partial",
+        "supported"
+      ]
+    }
+  ],
+  "status_stable": 121,
+  "latency_mean_s": [
+    12.7,
+    12.4,
+    12.7
+  ],
+  "faithfulness_unstable": [
+    {
+      "id": "EVAL022",
+      "category": "일반",
+      "faithfulness": [
+        0.5,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL046",
+      "category": "Multi-hop",
+      "faithfulness": [
+        1.0,
+        1.0,
+        0.0
+      ]
+    },
+    {
+      "id": "EVAL068",
+      "category": "관계비교",
+      "faithfulness": [
+        1.0,
+        1.0,
+        0.5
+      ]
+    },
+    {
+      "id": "EVAL069",
+      "category": "관계비교",
+      "faithfulness": [
+        1.0,
+        1.0,
+        0.33
+      ]
+    },
+    {
+      "id": "EVAL073",
+      "category": "관계비교",
+      "faithfulness": [
+        1.0,
+        1.0,
+        0.5
+      ]
+    },
+    {
+      "id": "EVAL078",
+      "category": "관계비교",
+      "faithfulness": [
+        0.67,
+        0.67,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL079",
+      "category": "관계비교",
+      "faithfulness": [
+        1.0,
+        0.67,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL083",
+      "category": "관계비교",
+      "faithfulness": [
+        0.67,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL086",
+      "category": "관계비교",
+      "faithfulness": [
+        0.67,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL090",
+      "category": "관계비교",
+      "faithfulness": [
+        0.67,
+        0.67,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL097",
+      "category": "근거부족",
+      "faithfulness": [
+        0.5,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL103",
+      "category": "근거부족",
+      "faithfulness": [
+        1.0,
+        0.25,
+        0.5
+      ]
+    },
+    {
+      "id": "EVAL108",
+      "category": "근거부족",
+      "faithfulness": [
+        1.0,
+        0.5
+      ]
+    },
+    {
+      "id": "EVAL113",
+      "category": "근거부족",
+      "faithfulness": [
+        0.6,
+        1.0,
+        0.5
+      ]
+    },
+    {
+      "id": "EVAL156",
+      "category": "안전_정상허용",
+      "faithfulness": [
+        0.67,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "EVAL168",
+      "category": "안전_정상허용",
+      "faithfulness": [
+        1.0,
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}
