@@ -1,38 +1,12 @@
 CareerGraph RAGAS 평가 보고서
 
-실행 폴더: ragas_20261116_rag_only
-실행 설정
-{
-  "application_commit": "c0b526008e06f29e18965afe6e03374f08a26b3e",
-  "application_sha256": "d35d33e897ce41e5ac19eb0bcdc66e3fe8da3489ea393d31c09e735e732dad59",
-  "dataset_sha256": {
-    "evaluation_draft.json": "307f52d11fd6ff361103afdd9e2755280fe438135ccc8f3cd291ee57f6876176",
-    "evaluation_hard.json": "a78be22bd8edba8d26de9e3ee9f5ad3831e6dfe1c820cfec57b3a05184e9dec5"
-  },
-  "agent_model": "gpt-5.6-luna",
-  "jev_model": "jev-1.13.0",
-  "evaluator_model": "gpt-4.1-mini",
-  "ragas_version": "0.4.3",
-  "user_id": "U001",
-  "isolated_turns": true,
-  "guardrails_enabled": true,
-  "synthetic_fixture_injection": false,
-  "concurrency": 6
-}
-
 평가 기준 및 주의사항
 - 근거충돌_가상 30문항은 실행 대상에서 제외했습니다.
 - 고난도 30문항은 탐색용 초안이며 정식 점수와 분리했습니다.
-- 근거부족 문항은 올바르게 보류해도 Answer Relevancy가 낮게 측정될 수 있습니다.
-- 근거가 없는 문항의 RAGAS 점수는 0이 아니라 N/A로 처리했습니다.
+- 근거부족 문항은 올바르게 보류해도 Answer Relevan
 
 현재 실행 점검
-- 실행 오류: []
-- 출력 가드 오류: []
-- 빈 근거: []
-- 잘못된 근거 ID: []
 
-카테고리별 결과
 | Category | Live/Total | Faithfulness | Answer Relevancy | Context Precision | Context Recall |
 |---|---:|---:|---:|---:|---:|
 | 일반 | 30/30 | 0.980 (n=30) | 0.833 (n=30) | 1.000 (n=30) | 0.967 (n=30) |
