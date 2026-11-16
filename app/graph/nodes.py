@@ -40,6 +40,12 @@ OUTPUT_BLOCKED_REPLY = (
     "질문을 바꿔 다시 시도해 주세요."
 )
 
+# 검색·판정 서비스 오류로 답을 만들지 못했을 때. 근거가 부족해 보류한 것과 구분해 다시 시도하도록 안내한다
+SERVICE_ERROR_REPLY = (
+    "검색 서비스에 일시적인 문제가 있어 답을 찾지 못했어요. "
+    "잠시 후 다시 시도해 주세요."
+)
+
 # 검사 객체가 없거나 검사가 실패했을 때
 GUARD_ERROR_REPLY = (
     "지금은 요청을 안전하게 처리할 수 없어요. "
@@ -261,6 +267,13 @@ def supervisor_node(
     step_count = state.get("step_count", 0)
     retry_count = state.get("retry_count", 0)
 
+    # 서비스 오류는 근거 부족과 다르다. 재검색하지 않고 오류 안내(abstain 노드)로 끝낸다.
+    if state.get("error"):
+        return Command(
+            goto="abstain",
+            update={"worker": "end", "status": "error", "step_count": step_count + 1},
+        )
+
     if step_count >= MAX_STEPS:
         return Command(
             goto="abstain",
@@ -341,6 +354,7 @@ async def search_node(state: AgentState) -> dict[str, Any]:
     )
 
     messages = build_worker_messages(state, "search")
+    routing_failed = False
 
     if search_router_backend() == "jev":
         try:
@@ -361,7 +375,9 @@ async def search_node(state: AgentState) -> dict[str, Any]:
                     worker_messages=messages,
                 )
             except SearchRoutingError:
-                # 두 번 실패해도 그래프 전체를 예외로 끝내지 않고, 근거 부족으로 처리한다.
+                # 두 번 실패해도 그래프 전체를 예외로 끝내지 않는다. 직업 설명 벡터 검색으로 한 번 더 찾고,
+                # 그것도 실패하면 근거 부족이 아니라 서비스 오류로 끝낸다(아래).
+                routing_failed = True
                 search_data = {
                     "search_mode": state.get("search_mode") or "vector",
                     "search_result": {"error": type(first_error).__name__},
@@ -378,10 +394,27 @@ async def search_node(state: AgentState) -> dict[str, Any]:
     if not search_data.get("evidence") and not search_data.get("error"):
         from app.tools.search import vector_search
 
-        fallback = await vector_search.ainvoke({
-            "question": state["question"],
-            "top_k": 5,
-        })
+        try:
+            fallback = await vector_search.ainvoke({
+                "question": state["question"],
+                "top_k": 5,
+            })
+        except Exception as exc:  # noqa: BLE001 - Neo4j·임베딩 서비스 오류
+            return {
+                "search_mode": search_data.get("search_mode"),
+                "search_result": {"error": type(exc).__name__},
+                "error": f"search_unavailable:{type(exc).__name__}",
+                "status": "error",
+                "worker_trace": append_worker_trace(state, "search"),
+            }
+        if routing_failed and not fallback.get("evidence"):
+            return {
+                "search_mode": search_data.get("search_mode"),
+                "search_result": search_data.get("search_result"),
+                "error": "search_routing_failed",
+                "status": "error",
+                "worker_trace": append_worker_trace(state, "search"),
+            }
         if fallback.get("evidence"):
             search_data = {
                 **search_data,
@@ -694,6 +727,10 @@ async def output_guard_node(
     rails = runtime.context.rails
     candidate = (state.get("answer_draft") or "").strip()
 
+    # 서비스 오류 안내는 코드가 정한 고정 문장이라 판정하지 않는다. 상태는 error 로 둔다.
+    if state.get("status") == "error" and state.get("error") and candidate == SERVICE_ERROR_REPLY:
+        return finish_output_guard(state, "skipped", None, None, SERVICE_ERROR_REPLY, None)
+
     if rails is None or not candidate:
         return finish_output_guard(
             state, "error", None, "missing_output_or_rails", GUARD_ERROR_REPLY, "error",
@@ -763,7 +800,17 @@ def output_node(state: AgentState) -> dict[str, Any]:
     }
 
 def abstain_node(state: AgentState) -> dict[str, Any]:
-    """근거 부족 안내를 출력 가드레일에 넘긴다."""
+    """근거 부족 안내를 출력 가드레일에 넘긴다. 서비스 오류(state.error)는 근거 부족과 구분해 오류 안내로 끝낸다."""
+
+    if state.get("error"):
+        return {
+            "answer_draft": SERVICE_ERROR_REPLY,
+            "final_response": None,
+            "status": "error",
+            "worker": "end",
+            "error": state["error"],
+            "worker_trace": append_worker_trace(state, "abstain"),
+        }
 
     return {
         "answer_draft": "현재 자료만으로는 답변을 확정하기 어렵습니다.",

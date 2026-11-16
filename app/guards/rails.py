@@ -16,6 +16,7 @@ from nemoguardrails import LLMRails, RailsConfig
 from nemoguardrails.rails.llm.options import RailStatus, RailType
 
 from app.core.policies import reply_for_rule
+from app.core.tracing import traced
 from app.guards.actions import register_guard_actions
 from app.guards.validators import has_hidden_instruction
 
@@ -110,6 +111,7 @@ def to_verdict(result) -> dict:
 
 
 # [보조 함수] 입력 레일 판정
+@traced("input-rail", as_type="guardrail", capture_input=False)
 async def check_input(rails: LLMRails, messages: list, selected_user_id: str | None = None) -> dict:
     """대화 기록의 마지막 팬 메시지를 입력 레일로 판정한 판정 기록 dict(to_verdict 와 같은 키)를 돌려준다.
 
@@ -128,6 +130,7 @@ async def check_input(rails: LLMRails, messages: list, selected_user_id: str | N
 
 
 # [보조 함수] 출력 레일 판정
+@traced("output-rail", as_type="guardrail", capture_input=False)
 async def check_output(rails: LLMRails, messages: list, documents_text: str) -> dict:
     """대화 기록의 마지막 루나 답을 출력 레일로 판정한 판정 기록 dict 를 돌려준다. documents_text 는 이번 턴의 근거 글이다."""
     # 고르기: 근거 글을 역할(role)이 context 인 메시지로 맨 앞에 두고, 최근 대화를 뒤에 붙인다

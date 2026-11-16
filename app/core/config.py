@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr
     typesafe_api_key: SecretStr
 
+    # Langfuse 트레이싱(선택). 공개 키와 비밀 키가 모두 있으면 켜지고, 없으면 트레이싱 없이 동작한다.
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_base_url: str = Field(
+        default="https://cloud.langfuse.com",
+        validation_alias=AliasChoices("LANGFUSE_BASE_URL", "LANGFUSE_HOST"),
+    )
+    langfuse_environment: str = "default"
+
     # Neo4j Aura 연결 정보. 기존 .env의 AURA_* 이름과 표준 NEO4J_* 이름을 모두 읽는다.
     neo4j_uri: str = Field(
         default="",
