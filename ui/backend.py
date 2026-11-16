@@ -23,6 +23,7 @@ from langgraph.checkpoint.memory import InMemorySaver  # noqa: E402
 
 from app.core.schemas import ChatContext  # noqa: E402
 from app.graph.builder import build_app  # noqa: E402
+from app.core.tracing import flush_traces, trace_turn  # noqa: E402
 from app.guards.rails import build_rails  # noqa: E402
 from app.main import make_input  # noqa: E402
 
@@ -58,17 +59,27 @@ class AgentRunner:
         async def produce() -> None:
             final_state: dict[str, Any] = {}
             try:
-                async for mode, chunk in self.app.astream(
-                    make_input(question),
-                    config=config,
-                    context=context,
-                    stream_mode=["updates", "values"],
-                ):
-                    if mode == "updates":
-                        for node_name in chunk:
-                            events.put(("step", node_name))
-                    else:
-                        final_state = chunk
+                # Langfuse 가 켜져 있으면 이 턴이 한 트레이스(세션=대화 ID, 사용자=선택한 회원)로 남는다
+                with trace_turn(question, thread_id, user_id) as trace:
+                    async for mode, chunk in self.app.astream(
+                        make_input(question),
+                        config={**config, "callbacks": trace.callbacks},
+                        context=context,
+                        stream_mode=["updates", "values"],
+                    ):
+                        if mode == "updates":
+                            for node_name in chunk:
+                                events.put(("step", node_name))
+                        else:
+                            final_state = chunk
+                    trace.set_output(
+                        final_state.get("final_response"),
+                        status=final_state.get("status"),
+                        input_guard=final_state.get("input_guard_status"),
+                        output_guard=final_state.get("output_guard_status"),
+                        search_mode=final_state.get("search_mode"),
+                    )
+                flush_traces()
                 events.put(("final", final_state))
             except Exception as exc:  # noqa: BLE001 - 화면에 오류 종류만 알린다
                 events.put(("error", exc))

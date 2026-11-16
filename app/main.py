@@ -9,6 +9,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from app.core.config import CHECKPOINT_PATH
 from app.core.schemas import ChatContext
+from app.core.tracing import flush_traces, trace_turn
 from app.graph.builder import build_app
 from app.graph.state import empty_turn
 from app.guards.rails import build_rails
@@ -97,11 +98,21 @@ async def run_chat(user_id: str | None, thread_id: str, debug: bool = False) -> 
             if not question:
                 continue
 
-            result = await app.ainvoke(
-                make_input(question),
-                config=config,
-                context=context,
-            )
+            # Langfuse 가 켜져 있으면 이 턴의 노드·LLM·가드레일 판정이 한 트레이스로 남는다(꺼져 있으면 callbacks 는 비어 있다)
+            with trace_turn(question, thread_id, user_id) as trace:
+                result = await app.ainvoke(
+                    make_input(question),
+                    config={**config, "callbacks": trace.callbacks},
+                    context=context,
+                )
+                trace.set_output(
+                    result.get("final_response"),
+                    status=result.get("status"),
+                    input_guard=result.get("input_guard_status"),
+                    output_guard=result.get("output_guard_status"),
+                    search_mode=result.get("search_mode"),
+                )
+            flush_traces()
 
             print("에이전트:", result.get("final_response"))
             print("상태:", result.get("status"))

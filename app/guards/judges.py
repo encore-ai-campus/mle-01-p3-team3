@@ -11,6 +11,7 @@ import warnings
 from langchain_typesafe import Choice, Noul, TypeSafeClassifier
 
 from app.core.config import settings
+from app.core.tracing import traced
 
 warnings.filterwarnings("ignore", message=".*TypeSafeClassifier.*beta")  # 베타 안내 경고만 끈다
 
@@ -31,6 +32,7 @@ FACTS_INSTRUCTION = (
 
 
 # [판정 함수] 위반 확률과 규칙 id 묻기
+@traced("jev-policy-judgement", as_type="guardrail")
 async def jev_policy_judgement(state: dict, policy: str, rules: dict) -> dict:
     """판정 값 {"probability": 상태가 정책을 어길 확률(0~1), "rule_id": 가장 가까운 규칙 id(없으면 빈 문자열)} 을 돌려준다."""
     # 위반 확률(Noul)과 규칙 고르기(Choice)를 한 번의 호출로 함께 묻는다
@@ -58,6 +60,7 @@ async def jev_policy_judgement(state: dict, policy: str, rules: dict) -> dict:
 
 
 # [판정 함수] 위기 신호와 서비스 범위 묻기
+@traced("jev-topic-judgement", as_type="guardrail")
 async def jev_topic_judgement(state: dict, crisis_policy: str, scope_policy: str, crisis_signals: dict) -> dict:
     """판정 값 {"crisis": 위기 신호 확률, "crisis_id": 가장 가까운 위기 id(없으면 빈 문자열), "out_of_scope": 범위 밖 확률} 을 돌려준다."""
     # 위기 확률, 범위 밖 확률, 위기 종류 고르기를 한 번의 호출로 함께 묻는다(입력마다 Jev 를 한 번만 더 부른다)
@@ -82,6 +85,7 @@ async def jev_topic_judgement(state: dict, crisis_policy: str, scope_policy: str
 
 
 # [판정 함수] 사실 대조
+@traced("jev-facts-probability", as_type="guardrail")
 async def jev_facts_probability(answer: str, documents: str) -> float:
     """루나 답이 근거 글(documents)로 뒷받침될 확률(0~1)을 돌려준다. 근거 글이 없으면 1.0 이다."""
     # 문서를 넘기지 않으면 NeMo 가 빈 줄('\n')이나 '$relevant_chunks' 글자를 그대로 넘긴다. 문서가 없는 것과 같게 본다

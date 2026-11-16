@@ -143,6 +143,10 @@ async def grade_evidence(question: str, candidates: list[dict[str, Any]]) -> tup
 async def grade_node(state: AgentState) -> dict[str, Any]:
     """[노드] 검색 근거의 관련성·충분성을 평가하고 쓸 근거만 남긴다."""
 
+    # 검색 서비스 오류는 Supervisor가 오류 안내로 끝낸다. 남은 이전 근거로 평가 모델을 부르지 않는다.
+    if state.get("error"):
+        return {"worker_trace": [*state.get("worker_trace", []), "grade"]}
+
     candidates = state.get("evidence", [])
     kept, decision, missing_info = await grade_evidence(state["question"], candidates)
 

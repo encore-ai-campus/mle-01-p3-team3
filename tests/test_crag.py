@@ -113,3 +113,18 @@ def test_grade_accepts_job_code_without_field(monkeypatch):
 
     assert decision == "ambiguous"
     assert {item["evidence_id"] for item in kept} == {"C1:work", "C1:related_certificates"}
+
+
+def test_grade_skips_model_on_search_service_error(monkeypatch):
+    monkeypatch.setattr(crag, "get_grade_chain", lambda: pytest.fail("모델을 부르면 안 됩니다"))
+    update = asyncio.run(crag.grade_node({
+        "question": "q", "error": "search_unavailable:ConnectionError",
+        "evidence": [JOB_WORK], "worker_trace": ["search"],
+    }))
+    assert update == {"worker_trace": ["search", "grade"]}
+
+
+def test_supervisor_ends_with_error_after_search_failure():
+    command = supervise(error="search_routing_failed", retrieval_decision="ambiguous")
+    assert command.goto == "abstain"
+    assert command.update["status"] == "error"

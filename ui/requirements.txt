@@ -22,6 +22,9 @@ openai==2.54.0
 langchain-typesafe==0.0.1a3
 typesafe-sdk==0.7.1
 
+# 트레이싱(선택): LANGFUSE_* 키가 있으면 켜진다
+langfuse==4.14.0
+
 # 가드레일 (presidio/spaCy/torch 를 끌어오는 sdd extra 와 Guardrails Hub PII 검증기는 넣지 않는다)
 nemoguardrails==0.23.0
 guardrails-ai==0.11.0
