@@ -95,6 +95,46 @@ PROFILE_CAREER_FIELDS = (
     "target_certificate",
 )
 
+PROFILE_PERSONAL_FIELDS = (
+    "display_name", "email", "phone", "address",
+)
+
+
+def requested_profile_fields(question: str) -> tuple[str, ...]:
+    """질문이 명시적으로 요청한 본인 프로필 필드만 워커에 공개한다.
+
+    이 함수는 라우팅/권한 판정이 아니라 프롬프트에 넣을 필드의 최소화만 담당한다.
+    선택된 user_id의 프로필만 이미 조회된다는 전제도 유지한다.
+    """
+    compact = "".join(str(question).split()).lower()
+    career_context_tokens = ("직업", "전공", "자격", "커리어", "진로", "추천", "관련")
+    asks_personal_summary = any(
+        token in compact for token in ("내정보", "내개인정보", "내프로필")
+    ) and not any(token in compact for token in career_context_tokens)
+    if asks_personal_summary:
+        return PROFILE_PERSONAL_FIELDS + PROFILE_CAREER_FIELDS
+    field_tokens = {
+        "이름": ("display_name",),
+        "이메일": ("email",),
+        "메일": ("email",),
+        "전화": ("phone",),
+        "휴대폰": ("phone",),
+        "주소": ("address",),
+    }
+    selected: list[str] = []
+    for token, fields in field_tokens.items():
+        if token in compact:
+            selected.extend(fields)
+    return tuple(dict.fromkeys(selected))
+
+
+def profile_for_worker(state: AgentState, worker_name: str | None) -> dict[str, Any]:
+    profile = state.get("user_profile") or {}
+    requested = requested_profile_fields(state.get("question", ""))
+    if requested:
+        return {key: profile[key] for key in requested if profile.get(key)}
+    return career_context(profile)
+
 
 def profile_career_lines(state: AgentState) -> str:
     """profile_node 가 SQLite 에서 읽은 본인 커리어만 "- 필드: 값" 줄로 만든다. 없으면 빈 문자열."""
@@ -131,7 +171,7 @@ def build_worker_instruction(state: AgentState, worker_name: str | None = None) 
         else str(message)
         for message in messages
     )
-    profile = state.get("user_profile", {})
+    profile = profile_for_worker(state, worker_name)
     evidence = state.get("evidence", [])
     if worker_name == "search":
         profile = career_context(profile)
@@ -177,18 +217,11 @@ def bind_claim_evidence(
 ) -> list[list[str]]:
     """Reasoner가 빠뜨린 인용을 현재 검색 근거에 한해 보정한다."""
 
-    available_ids = [
-        evidence.get("evidence_id")
-        for evidence in state.get("evidence", [])
-        if evidence.get("evidence_id")
-    ]
     bound: list[list[str]] = []
     for index, claim in enumerate(claims):
         ids = claim_evidence_ids[index] if index < len(claim_evidence_ids) else []
         if not ids and isinstance(claim, dict):
             ids = claim.get("evidence_ids", []) or []
-        if not ids and available_ids:
-            ids = [available_ids[0]]
         bound.append(list(dict.fromkeys(ids)))
     return bound
 
@@ -302,6 +335,7 @@ def supervisor_node(
 async def search_node(state: AgentState) -> dict[str, Any]:
     """설정에 따라 기존 LLM 검색 또는 Jev 검색을 실행."""
     from app.router.jev_router import (
+        SearchRoutingError,
         run_jev_search,
         search_router_backend,
     )
@@ -309,17 +343,60 @@ async def search_node(state: AgentState) -> dict[str, Any]:
     messages = build_worker_messages(state, "search")
 
     if search_router_backend() == "jev":
-        search_data = await run_jev_search(
-            state=state,
-            worker_messages=messages,
-        )
+        try:
+            search_data = await run_jev_search(
+                state=state,
+                worker_messages=messages,
+            )
+        except SearchRoutingError as first_error:
+            # Jev 분류·도구 호출은 읽기 전용이므로 일시적 라우팅 실패를 한 번만 재시도한다.
+            retry_state = dict(state)
+            retry_state["verification_feedback"] = (
+                "검색 라우팅이 실패했습니다. 질문에 직접 답할 수 있도록 "
+                "vector 또는 hybrid 검색을 선택하고 도구를 정확히 한 번 호출하세요."
+            )
+            try:
+                search_data = await run_jev_search(
+                    state=retry_state,
+                    worker_messages=messages,
+                )
+            except SearchRoutingError:
+                # 두 번 실패해도 그래프 전체를 예외로 끝내지 않고, 근거 부족으로 처리한다.
+                search_data = {
+                    "search_mode": state.get("search_mode") or "vector",
+                    "search_result": {"error": type(first_error).__name__},
+                    "evidence": [],
+                    "graph_paths": [],
+                }
     else:
         worker = get_worker("search")
         result = await worker.ainvoke({"messages": messages})
         search_data = result["structured_response"].model_dump()
 
+    # 관계 검색이 이름 불일치 등으로 빈 결과를 돌려주면, 완전한 보류 대신
+    # 직업 설명 벡터 검색으로 최소한의 관련 근거를 한 번 보충한다.
+    if not search_data.get("evidence") and not search_data.get("error"):
+        from app.tools.search import vector_search
+
+        fallback = await vector_search.ainvoke({
+            "question": state["question"],
+            "top_k": 5,
+        })
+        if fallback.get("evidence"):
+            search_data = {
+                **search_data,
+                "search_mode": "vector",
+                "search_result": {
+                    "fallback": "empty graph result",
+                    "evidence_count": len(fallback["evidence"]),
+                },
+                "evidence": fallback["evidence"],
+                "graph_paths": fallback.get("graph_paths", []),
+            }
+
     # 실제 SQL 조회 값도 근거로 전달해 추론·검증 워커가 같은 값을 확인한다.
     profile = state.get("user_profile", {})
+    visible_profile = profile_for_worker(state, "reasoner")
     profile_evidence = [
         {
             "evidence_id": f"profile:{profile['user_id']}:{key}",
@@ -329,9 +406,9 @@ async def search_node(state: AgentState) -> dict[str, Any]:
             "graph_path": [],
             "metadata": {"source_field": key},
         }
-        for key, value in profile.items()
-        if key != "user_id" and value is not None and value != ""
-    ] if profile else []
+        for key, value in visible_profile.items()
+        if value is not None and value != ""
+    ] if visible_profile else []
     search_data["evidence"] = [*search_data["evidence"], *profile_evidence]
 
     return {
@@ -359,9 +436,6 @@ def reasoner_node(state: AgentState) -> dict[str, Any]:
         else {"claim": str(claim), "evidence_ids": []}
         for claim in reasoner_output.claims
     ]
-    if not claims and answer_draft and state.get("evidence"):
-        claims = [{"claim": answer_draft, "evidence_ids": []}]
-
     claim_evidence_ids = bind_claim_evidence(
         state,
         claims,
@@ -566,7 +640,16 @@ def build_guard_documents(state: AgentState) -> str:
             continue
 
         if evidence_id:
-            documents.append(f"[{evidence_id}]\n{content}")
+            metadata = evidence.get("metadata") or {}
+            source_field = metadata.get("source_field", "")
+            job_name = metadata.get("job_name", "")
+            descriptor = " | ".join(
+                str(value) for value in (job_name, source_field) if value
+            )
+            prefix = f"[{evidence_id}]"
+            if descriptor:
+                prefix += f" ({descriptor})"
+            documents.append(f"{prefix}\n{content}")
         else:
             documents.append(str(content))
 

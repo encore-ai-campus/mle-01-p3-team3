@@ -23,6 +23,22 @@ Aura schema for Search Worker:
 - If returning graph_path, bind the path in MATCH as MATCH p=(...). Never return p unless p was bound.
 - If a path is not needed, omit graph_path from RETURN instead of using an undefined variable.
 
+Search quality constraints:
+- Use the exact occupation name from the question. Do not split a compound name such as
+  '약사 및 한약사' into separate occupations unless the database contains that exact label.
+- For a multi-part question, retrieve each requested field independently: work, related_majors,
+  core_abilities, related_certificates, and forecast only when the field is actually returned.
+  Missing data must be reported as unavailable, not filled with general career knowledge.
+- Keep graph queries targeted to the matched Job nodes. Do not expand through a popular shared
+  Ability node unless the question explicitly asks for a comparison or multi-hop result.
+- Return DISTINCT values, an explicit LIMIT (normally <= 40), and the exact source_field for every
+  graph evidence row. Use n.name for Major/Ability/Certificate; do not invent n.title,
+  n.description, or n.content properties.
+- Never fabricate an evidence_id. The application creates canonical IDs from row_id and
+  source_field. graph_path is topology metadata, not a citation ID.
+- If the question asks for several things and only some are found, return the found evidence and
+  let the reasoner write a grounded partial answer instead of discarding all results.
+
 Example:
 MATCH p=(j:Job)-[:RELATED_MAJOR]->(m:Major)
 WHERE j.source_id IN $job_codes
@@ -41,6 +57,22 @@ Evidence citation rules for Reasoner:
 - Keep answer_draft concise and state only information directly supported by the supplied evidence.
 - Do not add plausible but uncited duties, skills, tools, or qualifications.
 - When the evidence directly describes the requested occupation, answer the question instead of abstaining.
+- Match each claim to the field-specific evidence that supports it. Work claims must cite :work,
+  major claims :related_majors, ability claims :core_abilities, and certificate claims
+  :related_certificates. Never copy the first available ID to unrelated claims.
+- For compound questions, answer every supported part separately and explicitly mark only the
+  unavailable parts (for example salary or employment rate) as unavailable. A partial grounded
+  answer is preferable to an all-or-nothing refusal.
+- Preserve the exact occupation, major, ability, and certificate names from the evidence. Do not
+  treat a related certificate as a mandatory qualification or a related major as a guarantee.
+- Use graph_path only to explain a relationship; cite the accompanying evidence_id in claims.
+- Put the direct answer to the user's question in the first sentence. Do not begin with a
+  generic disclaimer when at least one matching evidence item exists.
+- For a compound request, use short labeled parts such as '업무', '관련 전공', '역량·자격',
+  and '확인되지 않은 정보'. Include only the parts requested by the user.
+- Do not repeat the question, dump the whole evidence list, or recommend unrelated occupations.
+- If evidence is partial, answer the supported part first and state the missing part in one short
+  sentence. Do not turn a useful partial answer into a complete refusal.
 """
 
 
@@ -110,6 +142,17 @@ status는 다음 중 하나입니다.
 
 근거가 부족한 경우 재검색이 필요한지 명확하게 판단합니다."""
 
+
+VERIFIER_SYSTEM_PROMPT += """
+Verification details:
+- Check citation IDs against the supplied evidence exactly. An unknown, empty, or field-mismatched
+  citation makes that claim unsupported; do not silently repair it with another evidence ID.
+- A response can be supported when it is a partial answer that clearly separates supported facts
+  from unavailable fields. Request another search only when a requested, searchable field is missing.
+- Do not require evidence for a safe limitation sentence such as '자료에 확정 연봉이 없습니다'.
+- If a graph query returned only a common node or an unrelated job, mark the affected claim
+  insufficient and describe the missing field in feedback.
+"""
 
 SEARCH_SYSTEM_PROMPT += AURA_SEARCH_SCHEMA_HINT
 REASONER_SYSTEM_PROMPT += REASONER_EVIDENCE_HINT
