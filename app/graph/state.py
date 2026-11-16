@@ -25,7 +25,7 @@ class AgentState(TypedDict):
     profile_required: bool | None
 
     # 슈퍼바이저가 정하는 다음 워커
-    worker: Literal['profile','search','reasoner','verifier','output','end']
+    worker: Literal['profile','search','grade','rewrite','reasoner','verifier','output','end']
     worker_trace: list[str]
 
     # search 워커가 사용하는 검색 방식
@@ -34,6 +34,13 @@ class AgentState(TypedDict):
     evidence: list[dict[str, Any]]
     graph_paths: list[list[str]]
     graph_visit_count: int
+
+    # CRAG: 검색 근거 평가·검색어 재작성
+    search_query: str | None  # 검색에 쓸 표현. None이면 원질문을 쓴다
+    retrieval_decision: Literal["", "correct", "ambiguous", "incorrect"]  # 평가 전 / 충분 / 일부 / 없음
+    missing_info: str  # 근거 평가에서 확인하지 못한 요청 항목
+    rewrite_count: int  # 완료한 검색어 재작성 횟수
+    search_history: list[dict[str, Any]]  # grade 호출마다 남긴 검색어·후보·선택·판정 기록
 
     # Reasoner 워커 결과
     answer_draft: str | None
@@ -57,6 +64,7 @@ class AgentState(TypedDict):
     status: Literal[
         "running",
         "supported",
+        "partial",
         "insufficient",
         "abstain",
         "error",
@@ -89,6 +97,11 @@ def empty_turn() -> dict:
         "evidence": [],
         "graph_paths": [],
         "graph_visit_count": 0,
+        "search_query": None,
+        "retrieval_decision": "",
+        "missing_info": "",
+        "rewrite_count": 0,
+        "search_history": [],
         "answer_draft": None,
         "claims": [],
         "claim_evidence_ids": [],

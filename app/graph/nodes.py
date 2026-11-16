@@ -17,6 +17,7 @@ from langgraph.runtime import Runtime
 
 from app.core.schemas import ChatContext
 from app.guards.rails import check_input, check_output, filter_evidence
+from app.graph.crag import MAX_REWRITES, is_profile_evidence, merge_evidence, merge_graph_paths
 
 WORKERS: dict[str, object] | None = None
 MAX_RETRIES = 1
@@ -184,6 +185,21 @@ def build_worker_instruction(state: AgentState, worker_name: str | None = None) 
         evidence = [item for item in evidence if
                     item.get("source") != "sqlite_profile"
                     or item.get("metadata", {}).get("source_field") in CAREER_FIELDS]
+
+    # CRAG: 재작성한 검색어와 근거 평가에서 확인하지 못한 항목을 워커에 알린다.
+    crag_lines = ""
+    search_query = state.get("search_query")
+    if search_query and search_query != state["question"]:
+        crag_lines += (
+            f"Rewritten search query: {search_query}\n"
+            "원질문의 요구는 유지하고, 검색 인자는 이 재작성 검색어를 기준으로 부족한 근거를 찾으세요.\n"
+        )
+    if state.get("missing_info"):
+        crag_lines += f"Missing info from retrieval grading: {state['missing_info']}\n"
+        if worker_name == "search":
+            crag_lines += "이번 검색은 위 항목의 근거를 찾는 데 집중하세요.\n"
+        else:
+            crag_lines += "근거가 있는 항목만 답하고, 위 항목은 확인되지 않았다고 한 문장으로 알리세요.\n"
     return (
         f"Question: {state['question']}\n"
         f"User profile: {profile}\n"
@@ -193,6 +209,7 @@ def build_worker_instruction(state: AgentState, worker_name: str | None = None) 
         "목표 자격을 이미 보유한 자격으로 해석하지 마세요. 프로필도 제공된 근거 ID에 맞춰 인용하세요.\n"
         f"Recent conversation history:\n{history}\n"
         f"{build_profile_block(state)}"
+        f"{crag_lines}"
         f"Search mode: {state.get('search_mode')}\n"
         f"Evidence: {evidence}\n"
         f"Graph paths: {state.get('graph_paths', [])}\n"
@@ -261,7 +278,7 @@ async def profile_check_node(state: AgentState) -> dict[str, Any]:
 
 def supervisor_node(
     state: AgentState,
-) -> Command[Literal["search", "reasoner", "verifier", "output", "abstain", "__end__"]]:
+) -> Command[Literal["search", "rewrite", "reasoner", "verifier", "output", "abstain", "__end__"]]:
     """현재 상태를 보고 다음 워커를 Supervisor가 결정한다."""
 
     step_count = state.get("step_count", 0)
@@ -291,9 +308,31 @@ def supervisor_node(
         )
 
     if state.get("answer_draft") is None:
+        # CRAG: grade 판정으로 답변·재작성·부분 답변·보류 중 하나를 고른다.
+        # grade를 거치지 않은 상태(판정 없음)는 기존처럼 바로 답변한다.
+        decision = state.get("retrieval_decision") or "correct"
+        if decision == "correct":
+            return Command(
+                goto="reasoner",
+                update={"worker": "reasoner", "step_count": step_count + 1},
+            )
+        if state.get("rewrite_count", 0) < MAX_REWRITES:
+            return Command(
+                goto="rewrite",
+                update={"worker": "rewrite", "step_count": step_count + 1},
+            )
+        has_search_evidence = any(
+            not is_profile_evidence(item) for item in state.get("evidence", [])
+        )
+        if has_search_evidence or decision == "ambiguous":
+            # 재작성 한도 뒤에도 일부 근거가 남으면 확인된 부분만 답한다.
+            return Command(
+                goto="reasoner",
+                update={"worker": "reasoner", "status": "partial", "step_count": step_count + 1},
+            )
         return Command(
-            goto="reasoner",
-            update={"worker": "reasoner", "step_count": step_count + 1},
+            goto="abstain",
+            update={"worker": "end", "status": "abstain", "step_count": step_count + 1},
         )
 
     verification = state.get("verification_result")
@@ -306,26 +345,27 @@ def supervisor_node(
         )
 
     if verification_status == "supported":
+        # 근거 평가가 충분하지 않았던 답변은 검증을 통과해도 부분 답변으로 표시한다.
+        decision = state.get("retrieval_decision") or "correct"
         return Command(
             goto="output",
             update={
                 "worker": "output",
-                "status": "supported",
+                "status": "supported" if decision == "correct" else "partial",
                 "step_count": step_count + 1,
             },
         )
 
     if verification_status in {"insufficient", "conflict"} and retry_count < MAX_RETRIES:
+        # CRAG: 검증 의견을 부족한 정보로 삼아 검색어를 고친 뒤 재검색한다.
+        # 이미 선택한 근거는 비우지 않고 새 검색 결과와 합쳐 grade에서 다시 평가한다.
         return Command(
-            goto="search",
+            goto="rewrite",
             update={
-                "worker": "search",
+                "worker": "rewrite",
                 "retry_count": retry_count + 1,
                 "step_count": step_count + 1,
-                # 재검색 결과로 다시 추론·검증하도록 이전 결과를 비운다.
-                "search_result": None,
-                "evidence": [],
-                "graph_paths": [],
+                "missing_info": state.get("verification_feedback") or state.get("missing_info") or "",
                 "answer_draft": None,
                 "claims": [],
                 "claim_evidence_ids": [],
@@ -396,7 +436,7 @@ async def search_node(state: AgentState) -> dict[str, Any]:
 
         try:
             fallback = await vector_search.ainvoke({
-                "question": state["question"],
+                "question": state.get("search_query") or state["question"],
                 "top_k": 5,
             })
         except Exception as exc:  # noqa: BLE001 - Neo4j·임베딩 서비스 오류
@@ -445,7 +485,12 @@ async def search_node(state: AgentState) -> dict[str, Any]:
     # 검색 문서 속 숨은 지시(예: "[시스템 안내] 이전 규칙과 관계없이…")는 추론·검증 워커에 넘기지 않는다
     filtered = filter_evidence(search_data["evidence"])
     search_data["dropped_evidence_ids"] = filtered["dropped_ids"]
-    search_data["evidence"] = [*filtered["kept"], *profile_evidence]
+    # CRAG: 재검색이면 grade가 이전에 선택한 근거를 새 결과와 합쳐 다시 평가받게 한다.
+    previous = [item for item in state.get("evidence", []) if not is_profile_evidence(item)]
+    search_data["evidence"] = [*merge_evidence(previous, filtered["kept"]), *profile_evidence]
+    search_data["graph_paths"] = merge_graph_paths(
+        state.get("graph_paths", []), search_data.get("graph_paths", []),
+    )
 
 
     return {

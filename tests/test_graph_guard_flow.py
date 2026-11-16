@@ -28,7 +28,27 @@ def calls(monkeypatch):
         "output_content": "",
         "profile_required": False,
         "reasoner_instruction": None,
+        "grade_decisions": [],  # 비어 있으면 correct. 테스트가 grade 호출마다 쓸 판정을 넣는다
+        "rewrite": 0,
     }
+
+    async def fake_grade(state):
+        decision = record["grade_decisions"].pop(0) if record["grade_decisions"] else "correct"
+        evidence = [] if decision == "incorrect" else state.get("evidence", [])
+        return {
+            "evidence": evidence,
+            "retrieval_decision": decision,
+            "missing_info": "" if decision == "correct" else "관련 자격 근거 없음",
+            "worker_trace": nodes.append_worker_trace(state, "grade"),
+        }
+
+    async def fake_rewrite(state):
+        record["rewrite"] += 1
+        return {
+            "search_query": "간호사 관련 자격",
+            "rewrite_count": state.get("rewrite_count", 0) + 1,
+            "worker_trace": nodes.append_worker_trace(state, "rewrite"),
+        }
 
     async def fake_profile_check(state):
         record["profile_check"] += 1
@@ -72,6 +92,8 @@ def calls(monkeypatch):
     monkeypatch.setattr(builder, "profile_check_node", fake_profile_check)
     monkeypatch.setattr(builder, "search_node", fake_search)
     monkeypatch.setattr(builder, "reasoner_node", fake_reasoner)
+    monkeypatch.setattr(builder, "grade_node", fake_grade)
+    monkeypatch.setattr(builder, "rewrite_node", fake_rewrite)
     monkeypatch.setattr(nodes, "check_input", fake_check_input)
     monkeypatch.setattr(nodes, "check_output", fake_check_output)
     return record
@@ -87,7 +109,7 @@ def test_passed_input_runs_graph_rag_then_output_guard(calls):
     result = run_graph("간호사가 되려면 어떻게 해야 하나요?")
 
     assert result["worker_trace"] == [
-        "input_guard", "profile_check", "search", "reasoner", "verifier", "output", "output_guard",
+        "input_guard", "profile_check", "search", "grade", "reasoner", "verifier", "output", "output_guard",
     ]
     assert result["final_response"] == "간호사는 간호학과를 졸업해야 합니다."
     assert result["output_guard_status"] == "passed"
@@ -261,6 +283,41 @@ def test_check_input_sends_selected_user_id_to_member_access_rail():
     assert verdict["status"] == "passed"
     assert seen["selected_user_id"] == "U0007"
     assert seen["policy_selected_user_id"] == "U0007"
+
+
+# ===== CRAG: 근거 평가 뒤 재작성·부분 답변·보류 분기 =====
+
+def test_crag_rewrites_once_then_answers_when_regraded_correct(calls):
+    calls["grade_decisions"] = ["ambiguous", "correct"]
+    result = run_graph("간호사의 관련 자격을 알려줘")
+
+    assert result["worker_trace"] == [
+        "input_guard", "profile_check", "search", "grade", "rewrite", "search", "grade",
+        "reasoner", "verifier", "output", "output_guard",
+    ]
+    assert calls["search"] == 2
+    assert calls["rewrite"] == 1
+    assert result["status"] == "supported"
+
+
+def test_crag_gives_partial_answer_after_rewrite_limit(calls):
+    calls["grade_decisions"] = ["ambiguous", "ambiguous"]
+    result = run_graph("간호사의 관련 자격을 알려줘")
+
+    assert calls["rewrite"] == 1
+    assert "reasoner" in result["worker_trace"]
+    assert result["status"] == "partial"
+    assert "관련 자격 근거 없음" in calls["reasoner_instruction"]
+
+
+def test_crag_abstains_when_no_evidence_after_rewrite(calls):
+    calls["grade_decisions"] = ["incorrect", "incorrect"]
+    result = run_graph("간호사의 관련 자격을 알려줘")
+
+    assert calls["rewrite"] == 1
+    assert "reasoner" not in result["worker_trace"]
+    assert result["worker_trace"][-2:] == ["abstain", "output_guard"]
+    assert result["status"] == "abstain"
 
 
 # ===== 서비스 오류는 근거 부족과 구분한다 / 검색 근거의 숨은 지시를 거른다 =====
