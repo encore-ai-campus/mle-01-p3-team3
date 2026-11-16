@@ -60,28 +60,7 @@
 
 ## 아키텍처
 
-```mermaid
-flowchart LR
-  U(["사용자<br/>브라우저"])
-  subgraph SC["Streamlit Community Cloud (한 프로세스)"]
-    UI["Streamlit UI<br/>ui/streamlit_app.py"]
-    AG["LangGraph 에이전트<br/>레일 → Supervisor → 워커"]
-    RL["NeMo Guardrails + Guardrails AI<br/>입력·출력 레일(판정만)"]
-    DB[("SQLite<br/>가상 회원 3명")]
-  end
-  N[("Neo4j Aura<br/>그래프 + 벡터 인덱스")]
-  O["OpenAI<br/>답변 · 검색 인자 · CRAG 평가 · 임베딩"]
-  J["Jev (TypeSafe)<br/>검색 방식 분류 · 정책·위기·범위 판정 · 사실 대조"]
-  L["Langfuse<br/>트레이스 (개인정보 가림)"]
-  U --> UI --> AG
-  AG --- RL
-  AG --- DB
-  AG --> N
-  AG --> O
-  RL --> J
-  AG --> J
-  AG -.->|"노드 · LLM · 레일 판정"| L
-```
+![CareerGraph 시스템 아키텍처](images/system_architecture.png)
 
 - **그래프 DB:** 직업(`Job`)을 중심으로 학과(`Major`)·자격(`Certificate`)·핵심능력(`Ability`)이 연결됩니다. 벡터 검색(`vector`)은 `Job.work_embedding`(직업 업무 설명)을 찾고, 그래프 검색(`graph`)은 Cypher로 관계를 따라가며, 결합 검색(`hybrid`)은 벡터로 찾은 직업(`job_code`)에서 그래프 관계를 확장합니다.
 - **레일:** NeMo Guardrails는 판정만 하고(`check_async`), 판정은 Jev와 정규식(Guardrails AI)이 합니다. 검색·답변은 LangGraph가 맡습니다.
@@ -92,30 +71,7 @@ flowchart LR
 
 ## 에이전트 구조
 
-```mermaid
-flowchart LR
-  Q(["질문"]) --> IG["입력 레일<br/>정책 · 회원 접근 · 위기 · 범위"]
-  IG -->|"통과"| PC{"회원 정보<br/>필요?"}
-  IG -->|"차단 · 안내"| END1(["규칙별 안내"])
-  PC -->|"예"| PR["회원 프로필 조회<br/>SQL"]
-  PC -->|"아니오"| SE
-  PC -.->|"판정 오류"| AB
-  PR --> SE["검색 워커<br/>Jev가 방식 선택<br/>vector · graph · hybrid"]
-  SE --> GR["CRAG 근거 평가<br/>correct · ambiguous · incorrect"]
-  GR --> SV{"Supervisor"}
-  SV -->|"부족 · 재작성 1회"| RW["검색어 재작성"]
-  RW --> SE
-  SV --> RE["추론 워커<br/>근거로 답변 작성"]
-  RE --> SV
-  SV --> VE["검증 워커<br/>근거 대조"]
-  VE --> SV
-  SV -->|"근거 충분"| OUT["답변"]
-  SV -->|"근거 0건 · 오류"| AB["보류 · 오류 안내"]
-  OUT --> OG["출력 레일<br/>정책 · 사실 대조 · 링크 · 개인정보"]
-  AB -->|"보류"| OG
-  AB -.->|"서비스 오류(고정 문구)"| A
-  OG --> A(["사용자에게 답변"])
-```
+![CareerGraph 에이전트 구조](images/agent_architecture.png)
 
 - **Supervisor:** 상태를 보고 다음 워커를 고르는 조정 계층입니다. 검색어 재작성은 한 번, verifier 의견에 따른 재검색도 한 번까지이며 전체 단계는 10단계까지로 제한합니다. 오류가 있으면 재검색 없이 오류 안내로 끝냅니다. 도식의 Supervisor 화살표는 단계가 끝날 때마다 이 노드로 돌아와 다음 워커를 고른다는 뜻입니다.
 - **CRAG(근거 평가·재작성):** 검색 직후 `grade`가 근거 중 쓸 것만 남기고 충분성을 판정합니다. 부족하면 `rewrite`가 부족한 정보를 찾는 검색어만 새로 만들어 한 번 다시 검색하고, 이전 근거와 합쳐 다시 평가합니다. 재검색 뒤에도 일부만 확인되면 확인된 부분만 답하고 없는 항목은 밝힙니다(`partial`). 실제 질문별 경로와 RAGAS 전후 비교: [통합 평가 보고서](docs/CareerGraph_통합평가_보고서_20261116.md#3-crag-동작-확인).
