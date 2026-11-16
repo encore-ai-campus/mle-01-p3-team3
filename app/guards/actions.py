@@ -10,7 +10,7 @@ NeMo 가 지금까지의 대화 기록(이벤트 목록)을 넣어 준다. 앱�
 - reply: 막을 때 팬에게 보낼 문장(core/policies.py 의 reply_for_rule)
 """
 from app.core.policies import PERSONA, reply_for_rule
-from app.guards.judges import jev_facts_probability, jev_policy_judgement
+from app.guards.judges import jev_facts_probability, jev_policy_judgement, jev_topic_judgement
 from app.guards.validators import validate_output_text
 
 INPUT_POLICY = PERSONA["input_policy"]
@@ -52,6 +52,8 @@ LLAMA_GUARD_RULE_PREFIX = "LG-"
 FACTS_RULE = "OUT-05"   # 검색 문서에 없는 내용을 지어냄(persona.yaml 출력 정책)
 LINK_RULE = "OUT-08"    # 공식 앱이 아닌 외부 링크(persona.yaml 출력 정책)
 STAFF_CODE_RULE = "OUT-02"  # 운영팀 코드, 내부 정보가 든 답변(persona.yaml 출력 정책). 함께 따라하기의 staff_code_output 가 쓴다
+SCOPE_RULE = "SCOPE-01"       # 서비스 범위 밖 질문(persona.yaml rule_replies 가 OOS-07 안내로 잇는다)
+CRISIS_FALLBACK_RULE = "CRI-01"  # 위기 신호인데 종류를 고르지 못했을 때
 
 # Jev 가 위반이라고 봤는데 규칙 후보를 고르지 못했을 때 남기는 규칙 id
 JEV_INPUT_FALLBACK_RULE = "IN-?"
@@ -72,13 +74,38 @@ def previous_user_messages(events: list) -> list:
     # 나눠 보낸 공격을 보기에는 앞선 두 개면 된다
     return texts[-2:]
 
+# [레일 액션] 입력 맨 앞: 위기 신호와 서비스 범위
+async def topic_input(text):
+    """판정 값 {"crisis", "out_of_scope": 확률, "crisis_rule_id": CRI-xx, "crisis_reply", "scope_reply": 안내 문장} 을 돌려준다."""
+    # 위기 신호는 차단이 아니라 상담 안내(CRI-*)로, 범위 밖 질문은 범위 안내(OOS-07)로 답하고 검색하지 않는다
+    # 기준값 비교와 어느 쪽을 먼저 볼지는 rails.co 의 topic input 흐름이 정한다(위기가 먼저다)
+    judgement = await jev_topic_judgement(
+        {"user_message": text},
+        PERSONA["crisis_policy"],
+        PERSONA["scope_policy"],
+        PERSONA["crisis_signals"],
+    )
+    crisis_rule_id = judgement["crisis_id"] or CRISIS_FALLBACK_RULE
+    return {
+        "crisis": judgement["crisis"],
+        "out_of_scope": judgement["out_of_scope"],
+        "crisis_rule_id": crisis_rule_id,
+        "crisis_reply": reply_for_rule(crisis_rule_id),
+        "scope_rule_id": SCOPE_RULE,
+        "scope_reply": reply_for_rule(SCOPE_RULE),
+    }
+
+
 # [레일 액션] 입력 : Jev 입력 정책
-async def jev_policy_input(text, events):
+async def jev_policy_input(text, events, selected_user_id=None):
     """팬 메시지의 판정 값 {"probability": 입력 정책 위반 확률, "rule_id": 걸린 규칙 id, "reply": 거절 문장} 을 돌려준다."""
     # events 는 rails.co 가 넘기지 않는다. 인자 이름이 events 라서 NeMo 가 대화 기록을 채워 준다
     # 앞선 팬 메시지를 함께 넘겨야 여러 메시지에 나눠 보낸 공격(IN-08)을 본다
     # 앞 턴에서 입력 레일이 막은 메시지는 표시 문구([입력 레일이 막은 메시지])로 바뀌어 들어 있을 수 있다
-    state ={"user_message": text, "previous_user_messages": previous_user_messages(events)}
+    # 선택한 회원 ID 도 넘겨 'U001 내 정보'처럼 본인 ID 를 적은 질문을 타인 조회(IN-03)로 보지 않게 한다
+    state = {"user_message": text, "previous_user_messages": previous_user_messages(events)}
+    if selected_user_id and selected_user_id != "$selected_user_id":
+        state["selected_user_id"] = selected_user_id
 
     # 정책 글(persona.yaml 의 input_policy)과 규칙 후보(input_rules)로 Jev 에게 확률과 규칙을 한 번에 묻는다
     judgement = await jev_policy_judgement(state, INPUT_POLICY, PERSONA["input_rules"])
@@ -141,6 +168,7 @@ async def guardrails_ai_output(text):
 
 # rails/guard/rails.co 가 execute 로 부르는 액션 목록. 함수 이름이 곧 액션 이름이다
 GUARD_ACTIONS = [
+    topic_input,
     member_access_input,
     jev_policy_input,
     # TODO(함께 따라하기): 출력 레일 액션 맨 앞(jev_policy_output 위)에 staff_code_output 를 더한다

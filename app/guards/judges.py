@@ -57,6 +57,30 @@ async def jev_policy_judgement(state: dict, policy: str, rules: dict) -> dict:
     return {"probability": decision.nouls["violation"].noul, "rule_id": rule_id}
 
 
+# [판정 함수] 위기 신호와 서비스 범위 묻기
+async def jev_topic_judgement(state: dict, crisis_policy: str, scope_policy: str, crisis_signals: dict) -> dict:
+    """판정 값 {"crisis": 위기 신호 확률, "crisis_id": 가장 가까운 위기 id(없으면 빈 문자열), "out_of_scope": 범위 밖 확률} 을 돌려준다."""
+    # 위기 확률, 범위 밖 확률, 위기 종류 고르기를 한 번의 호출로 함께 묻는다(입력마다 Jev 를 한 번만 더 부른다)
+    criteria = dict(crisis_signals)
+    criteria[NO_RULE] = "위 항목 어느 것에도 해당하지 않는다"
+    decision = await jev.ainvoke({
+        "state": state,
+        "questions": {
+            "crisis": Noul(instructions=crisis_policy),
+            "out_of_scope": Noul(instructions=scope_policy),
+            "crisis_id": Choice(instructions="상태가 아래 위기 신호 가운데 어느 것에 가장 잘 해당하는지 하나만 고르세요.", criteria=criteria),
+        },
+    })
+    crisis_id = decision.choices["crisis_id"].choice
+    if crisis_id == NO_RULE:
+        crisis_id = ""
+    return {
+        "crisis": decision.nouls["crisis"].noul,
+        "crisis_id": crisis_id,
+        "out_of_scope": decision.nouls["out_of_scope"].noul,
+    }
+
+
 # [판정 함수] 사실 대조
 async def jev_facts_probability(answer: str, documents: str) -> float:
     """루나 답이 근거 글(documents)로 뒷받침될 확률(0~1)을 돌려준다. 근거 글이 없으면 1.0 이다."""

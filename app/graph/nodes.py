@@ -16,7 +16,7 @@ from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
 from app.core.schemas import ChatContext
-from app.guards.rails import check_input, check_output
+from app.guards.rails import check_input, check_output, filter_evidence
 
 WORKERS: dict[str, object] | None = None
 MAX_RETRIES = 1
@@ -407,9 +407,13 @@ async def search_node(state: AgentState) -> dict[str, Any]:
             "metadata": {"source_field": key},
         }
         for key, value in visible_profile.items()
-        if value is not None and value != ""
+        if key != "user_id" and value is not None and value != ""
     ] if visible_profile else []
-    search_data["evidence"] = [*search_data["evidence"], *profile_evidence]
+    # 검색 문서 속 숨은 지시(예: "[시스템 안내] 이전 규칙과 관계없이…")는 추론·검증 워커에 넘기지 않는다
+    filtered = filter_evidence(search_data["evidence"])
+    search_data["dropped_evidence_ids"] = filtered["dropped_ids"]
+    search_data["evidence"] = [*filtered["kept"], *profile_evidence]
+
 
     return {
         "search_mode": search_data["search_mode"],
@@ -607,9 +611,11 @@ async def input_guard_node(
         )
 
     # AgentState.status에 "blocked"가 없으므로 에이전트 상태와 가드레일 상태를 분리한다.
+    # 레일이 규칙에 맞춰 정한 안내(위기 상담, 범위 안내, 거절 사유)가 있으면 그 문장을 보낸다.
     if guard_status == "blocked":
         return stop_at_input_guard(
-            state, "blocked", rule_id, None, INPUT_BLOCKED_REPLY, "abstain",
+            state, "blocked", rule_id, None,
+            (verdict.get("content") or "").strip() or INPUT_BLOCKED_REPLY, "abstain",
         )
 
     if guard_status == "modified":
@@ -726,9 +732,16 @@ async def output_guard_node(
         # supported 또는 abstain 등 기존 상태는 그대로 둔다.
         return finish_output_guard(state, "passed", None, None, candidate, None)
 
+    # 가림: 개인정보를 표시 글자로 바꾼 답은 그대로 보낸다. 가린 글이 비었으면 막은 것과 같게 처리한다.
+    masked = (verdict.get("content") or "").strip()
+    if guard_status == "modified" and masked:
+        return finish_output_guard(state, "modified", rule_id, None, masked, None)
+
+    # 막음: 레일이 규칙에 맞춰 정한 안내(근거 부족, 안전 확인 실패)가 있으면 그 문장을 보낸다.
     if guard_status in {"blocked", "modified"}:
+        reply = masked if guard_status == "blocked" and masked else OUTPUT_BLOCKED_REPLY
         return finish_output_guard(
-            state, guard_status, rule_id, None, OUTPUT_BLOCKED_REPLY, "abstain",
+            state, guard_status, rule_id, None, reply, "abstain",
         )
 
     return finish_output_guard(

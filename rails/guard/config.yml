@@ -12,6 +12,7 @@ rails:
     flows:
       - jev policy input      # 3Jev: persona.yaml 입력 정책 위반 확률
       - member access input   # Jev: 선택한 회원 이외의 정보 요청 검사
+      - topic input           # Jev: 위기 신호면 상담 안내, 서비스 범위 밖이면 범위 안내
   # 출력 레일: 답변이 팬에게 가기 전에 검사하고 고친다. 답을 고치는 층(Guardrails AI)은 맨 뒤에 둔다
   output:
     flows:

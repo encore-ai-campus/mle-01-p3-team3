@@ -6,6 +6,8 @@ Streamlit Community Cloud 의 Main file path 도 ui/streamlit_app.py 로 둔다.
 from __future__ import annotations
 
 import sys
+import base64
+from html import escape
 import uuid
 from pathlib import Path
 
@@ -46,28 +48,11 @@ ERROR_REPLY = "지금은 답변을 만들 수 없어요. 잠시 후 다시 물�
 st.set_page_config(
     page_title="커리 · CareerGraph",
     page_icon=AVATAR,
-    layout="centered",
-    initial_sidebar_state="expanded",
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-st.markdown(
-    """
-    <style>
-    .curri-hero-title { font-size: 1.9rem; font-weight: 700; margin: 0 0 .25rem 0; }
-    .curri-hero-title span { color: #1F9E89; }
-    .curri-hero-sub { color: #4B5B68; line-height: 1.6; margin-bottom: .5rem; }
-    .curri-flow { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin: .25rem 0 .75rem 0; }
-    .curri-step { background: #E7F5F1; border: 1px solid #CFE8E2; color: #1E2B37;
-                  border-radius: 999px; padding: .15rem .6rem; font-size: .82rem; white-space: nowrap; }
-    .curri-step.stop { background: #FFF4E5; border-color: #F3D19C; }
-    .curri-arrow { color: #8AA6A0; font-size: .8rem; }
-    .curri-card-label { font-size: .75rem; color: #5D7A74; font-weight: 700; letter-spacing: .02em; margin-bottom: .1rem; }
-    .curri-card-value { font-size: .95rem; margin-bottom: .45rem; }
-    .curri-gold { color: #B7832A; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown(f"<style>{(UI_DIR / 'styles.css').read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
 
 # ===== 상태 =====
@@ -106,86 +91,66 @@ def cached_members() -> list[dict[str, str]]:
 
 # ===== 사이드바 =====
 
-def render_sidebar():
-    """사이드바를 그리고 (선택한 회원 id, 엔진 상태 표시 자리) 를 돌려준다."""
-    with st.sidebar:
-        left, mid, right = st.columns([1, 2, 1])
-        mid.image(MASCOT, width="stretch")
+def render_topbar():
+    """회원 선택과 대화 설정을 상단에 모은다."""
+    with st.container(key="brandbar"):
+        brand, action = st.columns([5, 1], vertical_alignment="center")
+        brand.markdown("<div class='curri-brand'>🧭 <strong>커리 Curri</strong><span>진로 탐색 도우미</span></div>", unsafe_allow_html=True)
+        action.button("새 대화", icon=":material/add_comment:", on_click=reset_conversation, width="stretch")
+    members = cached_members()
+    names = {member["user_id"]: member["display_name"] for member in members}
+    with st.container(key="settings"):
+        member, trace = st.columns([7, 4], vertical_alignment="center")
+        with member:
+            label, field = st.columns([1, 4], vertical_alignment="center")
+            label.markdown("**시연 회원**")
+            with field:
+                user_id = st.selectbox("시연 회원", options=[None, *names],
+                    format_func=lambda uid: "게스트 (회원 정보 없이)" if uid is None else f"{names[uid]} · {uid}",
+                    key="user_id", on_change=reset_conversation, label_visibility="collapsed")
+                st.caption("가상 회원을 선택해 맞춤 질문을 체험해 보세요. 실제 본인 인증은 아니에요.")
+        with trace:
+            st.toggle("답을 찾은 과정 보기", value=True, key="show_trace")
+    if user_id:
+        career = load_member_career(user_id)
+        with st.expander("선택한 회원의 커리어 정보", expanded=True):
+            current, target = st.columns(2)
+            for column, title, prefix in ((current, "지금", "current"), (target, "🧭 목표", "target")):
+                column.markdown(f"**{title}**")
+                column.write(career.get(f"{prefix}_job", "-"))
+                column.caption(f"{career.get(f'{prefix}_major', '-')} · {career.get(f'{prefix}_certificate', '-')}")
+    return user_id
+
+
+def render_welcome(user_id: str | None):
+    with st.container(key="welcome"):
+        mascot = base64.b64encode(Path(MASCOT).read_bytes()).decode()
         st.markdown(
-            "<div style='text-align:center'><b style='font-size:1.15rem'>커리 Curri</b><br>"
-            "<span style='color:#4B5B68;font-size:.85rem'>커리어 그래프로 길을 찾는<br>진로 탐색 도우미</span></div>",
+            "<div class='curri-hero'><div class='curri-copy'>"
+            "<div class='curri-eyebrow'>커리와 시작하는 진로 탐색</div>"
+            "<h1>궁금한 진로 이야기,<br>여기서 시작해 볼까요?</h1>"
+            "<p>직업·학과·자격증에 대해 편하게 물어보세요.</p></div>"
+            f"<div class='curri-mascot'><img alt='나침반을 든 커리 마스코트' src='data:image/png;base64,{mascot}'></div></div>",
             unsafe_allow_html=True,
         )
-        st.divider()
-
-        members = cached_members()
-        names = {member["user_id"]: member["display_name"] for member in members}
-        user_id = st.selectbox(
-            "시연 회원",
-            options=[None, *names],
-            format_func=lambda uid: "게스트 (회원 정보 없이)" if uid is None else f"{names[uid]} · {uid}",
-            key="user_id",
-            on_change=reset_conversation,
-        )
-        st.caption("시연용 가상 회원이에요. 실제 본인 인증이 아니에요.")
-
+        typed = st.chat_input("예: 간호사가 되려면 어떤 전공이 필요해?", key="welcome_input")
+        st.markdown("<div class='curri-suggestions-title'>바로 시작하고 싶다면, 질문을 골라보세요</div>", unsafe_allow_html=True)
+        labels = ["직업과 전공", "관심 분야와 직업", "직업과 자격증"]
+        icons = [":material/school:", ":material/bar_chart:", ":material/workspace_premium:"]
+        columns = st.columns(3, gap="small")
+        for index, (column, example) in enumerate(zip(columns, GENERAL_EXAMPLES)):
+            with column, st.container(key=f"question_{index}"):
+                st.button(f"{labels[index]}\n\n**{example}**", key=f"example_{index}", on_click=ask,
+                    args=(example,), icon=icons[index], width="stretch")
         if user_id:
-            career = load_member_career(user_id)
-            with st.container(border=True):
-                st.markdown(
-                    "<div class='curri-card-label'>지금</div>"
-                    f"<div class='curri-card-value'>{career.get('current_job', '-')}<br>"
-                    f"<small>{career.get('current_major', '-')} · {career.get('current_certificate', '-')}</small></div>"
-                    "<div class='curri-card-label curri-gold'>🧭 목표</div>"
-                    f"<div class='curri-card-value'>{career.get('target_job', '-')}<br>"
-                    f"<small>{career.get('target_major', '-')} · {career.get('target_certificate', '-')}</small></div>",
-                    unsafe_allow_html=True,
-                )
-
-        st.toggle("답을 찾은 과정 보기", value=True, key="show_trace")
-        st.button(
-            "새 대화 시작",
-            icon=":material/add_comment:",
-            on_click=reset_conversation,
-            width="stretch",
-        )
-
-        st.divider()
-        engine_slot = st.empty()
-        st.caption(
-            "자료: 커리어넷 직업·학과·자격 정보  \n"
-            "커리는 찾은 근거 안에서만 답하고, 근거가 없으면 모른다고 말해요."
-        )
-    return user_id, engine_slot
+            personal = st.columns(2)
+            for index, example in enumerate(MEMBER_EXAMPLES):
+                personal[index].button(example, key=f"personal_{index}", on_click=ask, args=(example,), width="stretch", icon="🧭")
+        else:
+            st.markdown("<div class='curri-tip'><span>ⓘ</span> 상단에서 시연 회원을 선택하면 ‘내 목표 직업’ 같은 맞춤 질문도 할 수 있어요.</div>", unsafe_allow_html=True)
+    return typed
 
 
-# ===== 첫 화면 =====
-
-def render_welcome(user_id: str | None) -> None:
-    left, right = st.columns([1, 2], vertical_alignment="center")
-    left.image(MASCOT, width="stretch")
-    with right:
-        st.markdown(
-            "<div class='curri-hero-title'>안녕하세요, 저는 <span>커리</span>예요!</div>"
-            "<div class='curri-hero-sub'>궁금한 직업·학과·자격증을 물어보면 커리어 그래프에서 "
-            "근거를 찾아 길을 안내해 드릴게요.</div>",
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("##### 이렇게 물어보세요")
-    examples = (MEMBER_EXAMPLES if user_id else []) + GENERAL_EXAMPLES
-    columns = st.columns(2)
-    for index, example in enumerate(examples[:4]):
-        columns[index % 2].button(
-            example,
-            key=f"example_{index}",
-            on_click=ask,
-            args=(example,),
-            width="stretch",
-            icon="🧭" if example in MEMBER_EXAMPLES else "💬",
-        )
-    if not user_id:
-        st.caption("왼쪽에서 시연 회원을 고르면 '내 목표 직업' 같은 맞춤 질문도 할 수 있어요.")
 
 
 # ===== 메시지 =====
@@ -294,26 +259,41 @@ def answer_question(question: str, user_id: str | None) -> None:
 # ===== 화면 =====
 
 init_state()
-user_id, engine_slot = render_sidebar()
+user_id = render_topbar()
 
-if not st.session_state.messages and not st.session_state.pending_question:
-    render_welcome(user_id)
+welcome = not st.session_state.messages and not st.session_state.pending_question
+if welcome:
+    typed = render_welcome(user_id)
+    if typed:
+        ask(typed)
+        st.rerun()
+else:
+    with st.container(key="conversation"):
+        render_history()
+        if st.session_state.pending_question:
+            question = st.session_state.pending_question
+            st.session_state.pending_question = None
+            answer_question(question, user_id)
+            st.rerun()
+    typed = st.chat_input("직업, 학과, 자격증에 대해 물어보세요", key="conversation_input")
+    if typed:
+        ask(typed)
+        st.rerun()
 
-render_history()
+with st.container(key="footer"):
+    status_col, source_col = st.columns([1, 2])
+    engine_slot = status_col.empty()
+    source_col.markdown("<div class='curri-source'>커리어넷 자료 기반 · 확인된 근거 안에서 안내해요.</div>", unsafe_allow_html=True)
 
-typed = st.chat_input("직업, 학과, 자격증에 대해 물어보세요")
-question = typed or st.session_state.pending_question
-if question:
-    st.session_state.pending_question = None
-    answer_question(question, user_id)
-
-# 첫 질문을 기다리지 않도록 화면을 다 그린 뒤 엔진을 미리 준비한다.
+# 기존 엔진 사전 준비 동작은 유지하며, 상태 안내는 화면 하단에 표시한다.
 if "engine_ready" not in st.session_state:
-    with engine_slot, st.spinner("커리 엔진 준비 중…"):
+    with engine_slot, st.spinner("답변을 준비하고 있어요…"):
         try:
             get_runner()
             st.session_state.engine_ready = True
         except Exception as exc:  # noqa: BLE001
-            engine_slot.error(f"엔진을 준비하지 못했어요: {type(exc).__name__}. Secrets 설정을 확인해 주세요.")
+            engine_slot.caption("🟠 답변 연결을 확인해 주세요.")
+            with st.expander("연결 상태 자세히 보기"):
+                st.error(f"엔진을 준비하지 못했어요: {type(exc).__name__}. Secrets 설정을 확인해 주세요.")
 if st.session_state.get("engine_ready"):
-    engine_slot.caption("🟢 커리 엔진 준비 완료")
+    engine_slot.markdown("<div class='curri-ready'>● <span>대화할 준비가 되었어요</span></div>", unsafe_allow_html=True)

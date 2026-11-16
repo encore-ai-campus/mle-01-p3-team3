@@ -24,6 +24,8 @@ def calls(monkeypatch):
         "check_output": [],
         "input_status": "passed",
         "output_status": "passed",
+        "input_content": "",
+        "output_content": "",
         "profile_required": False,
         "reasoner_instruction": None,
     }
@@ -60,12 +62,12 @@ def calls(monkeypatch):
     async def fake_check_input(rails, messages, selected_user_id=None):
         record["check_input"].append({"messages": messages, "selected_user_id": selected_user_id})
         rule_id = "IN-05" if record["input_status"] == "blocked" else ""
-        return {"status": record["input_status"], "rule_id": rule_id, "blocked_by": "", "content": ""}
+        return {"status": record["input_status"], "rule_id": rule_id, "blocked_by": "", "content": record["input_content"]}
 
     async def fake_check_output(rails, messages, documents_text):
         record["check_output"].append({"messages": messages, "documents_text": documents_text})
         rule_id = "OUT-05" if record["output_status"] == "blocked" else ""
-        return {"status": record["output_status"], "rule_id": rule_id, "blocked_by": "", "content": ""}
+        return {"status": record["output_status"], "rule_id": rule_id, "blocked_by": "", "content": record["output_content"]}
 
     monkeypatch.setattr(builder, "profile_check_node", fake_profile_check)
     monkeypatch.setattr(builder, "search_node", fake_search)
@@ -105,6 +107,38 @@ def test_blocked_input_stops_before_graph_rag(calls):
     assert calls["profile_check"] == 0
     assert calls["search"] == 0
     assert calls["check_output"] == []
+
+
+def test_blocked_input_uses_rule_reply_from_rail(calls):
+    """레일이 규칙에 맞춘 안내(예: 위기 상담 안내)를 주면 고정 문구 대신 그 문장을 보낸다."""
+    calls["input_status"] = "blocked"
+    calls["input_content"] = "많이 힘드셨겠어요. 믿을 수 있는 사람에게 지금 알려 주세요."
+
+    result = run_graph("다 그만두고 싶어요")
+
+    assert result["final_response"] == calls["input_content"]
+    assert calls["search"] == 0
+
+
+def test_modified_output_sends_masked_answer(calls):
+    """개인정보를 가린 답(modified)은 막지 않고 가린 글을 보낸다."""
+    calls["output_status"] = "modified"
+    calls["output_content"] = "간호사는 간호학과를 졸업해야 합니다. 주소는 [주소]예요."
+
+    result = run_graph("간호사가 되려면 어떻게 해야 하나요?")
+
+    assert result["final_response"] == calls["output_content"]
+    assert result["output_guard_status"] == "modified"
+
+
+def test_blocked_output_uses_rule_reply_from_rail(calls):
+    calls["output_status"] = "blocked"
+    calls["output_content"] = "현재 자료만으로는 답을 확인하기 어려워요."
+
+    result = run_graph("간호사가 되려면 어떻게 해야 하나요?")
+
+    assert result["final_response"] == calls["output_content"]
+    assert result["status"] == "abstain"
 
 
 def test_input_guard_passes_selected_user_id(calls):
@@ -203,7 +237,12 @@ def test_check_input_sends_selected_user_id_to_member_access_rail():
 
     seen = {}
 
-    async def jev_policy_input(text, events):
+    async def topic_input(text):
+        return {"crisis": 0.0, "out_of_scope": 0.0, "crisis_rule_id": "", "crisis_reply": "",
+                "scope_rule_id": "", "scope_reply": ""}
+
+    async def jev_policy_input(text, events, selected_user_id=None):
+        seen["policy_selected_user_id"] = selected_user_id
         return {"probability": 0.0, "rule_id": "", "reply": ""}
 
     async def member_access_input(text, selected_user_id=None):
@@ -211,6 +250,7 @@ def test_check_input_sends_selected_user_id_to_member_access_rail():
         return {"blocked": False, "rule_id": "", "reply": ""}
 
     rails = LLMRails(RailsConfig.from_path(str(rails_mod.RAILS_DIR)))
+    rails.register_action(topic_input, "topic_input")
     rails.register_action(jev_policy_input, "jev_policy_input")
     rails.register_action(member_access_input, "member_access_input")
 
@@ -220,3 +260,4 @@ def test_check_input_sends_selected_user_id_to_member_access_rail():
 
     assert verdict["status"] == "passed"
     assert seen["selected_user_id"] == "U0007"
+    assert seen["policy_selected_user_id"] == "U0007"
