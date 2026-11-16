@@ -1,5 +1,23 @@
 # CareerGraph 에이전트 상세 설계
 
+> ## 구현 현황 (2026-11-16) — 설계와 달라진 점
+>
+> 이 설계는 구현되어 배포 앱에서 동작한다. 평가 결과: [README](../README.md) · [통합 평가 보고서](CareerGraph_통합평가_보고서_20261116.md). 아래는 **설계 본문과 다른 부분**이다.
+>
+> | 설계 | 현재 구현 |
+> |---|---|
+> | NeMo 입력 검사 → Supervisor → 검색·추론·검증 | 입력 레일(정책·회원 접근·위기·범위) → `profile_check`(Jev가 회원 정보 필요 여부 판정) → 필요하면 `profile`(SQLite 조회) → `search` → **`grade`(CRAG 근거 평가)** → Supervisor → `reasoner` → `verifier` → `output` 또는 `abstain` → 출력 레일 |
+> | 재검색 최대 1회 | **두 가지 1회**: CRAG 검색어 재작성(`MAX_REWRITES=1`)과 verifier 의견에 따른 재검색(`MAX_RETRIES=1`). 전체 단계 상한 `MAX_STEPS=10` |
+> | 검색 방식은 Supervisor가 정함 | 질문마다 **Jev가 vector/graph/hybrid를 분류**하고, GPT는 선택된 도구 하나의 인자(질문·Cypher)만 작성. hybrid는 벡터 후보 → 그래프 확장. 분류 실패는 임의로 바꾸지 않고 오류 처리 |
+> | 종료 상태: 답변 또는 보류 | `supported`(근거 충분) · **`partial`(확인된 부분만 답하고 없는 항목을 밝힘)** · `abstain`(근거 0건 보류) · `error`(서비스 오류) |
+> | 서비스 오류는 '자료에 없음'과 구분 | 구현됨. `search_routing_failed`, `search_unavailable:<예외>` 오류로 끝나며 별도 안내 문구를 보냄 |
+> | 근거 레코드: API 관계·API 설명·PDF | **PDF 제외**. 근거 ID는 `직업행ID:필드`(예 `CAREER0131:core_abilities`), 출처 `career_api` |
+> | 상태 항목 `request_id`, `trace_id`, `policy_input` 등 | 실제 State 필드는 `input_guard_status/rule`, `user_profile`, `search_mode`, `evidence`, `graph_paths`, `answer_draft`, `claims`, `verification_result`, `retrieval_decision`, `rewrite_count`, `search_history`, `output_guard_status/rule`, `status`, `error` 등. trace ID는 State에 두지 않고 Langfuse가 관리 |
+> | 자료 간 충돌 시 출처·연도 비교 후 보류 | 충돌 시나리오(근거충돌_가상 30문항)는 합성 문서 주입이 필요해 **아직 평가하지 못함** |
+> | 출력 `MODIFIED`는 검토된 고정 안내로 | 개인정보만 가린 답변(`modified`)은 **가린 그대로 전달**, 막은 답변은 규칙별 안내 |
+> | Langfuse에서 수정 전후 trajectory 비교 | 구현·기록됨: [Langfuse 디버깅 보고서](CareerGraph_Langfuse_디버깅_보고서.md) |
+> | Community Cloud 배포 적합성 미검증 | 배포 완료(Streamlit Cloud). 의존성은 `ui/requirements.txt`로 분리 |
+
 > **최신 범위 결정 (2026-11-12) — 아래의 기존 설계보다 우선 적용**
 >
 > 이번 구현·인덱싱·검색·시연에서는 한국직업전망 **PDF 데이터와 PDF 매핑을 제외**한다. 아래 기존 내용 중 PDF 적재·인용·시연을 전제로 한 부분은 이전 설계 기록이며 현행 작업이 아니다. 기존 데이터 파일의 삭제를 뜻하지 않는다.
@@ -13,7 +31,7 @@
 > 이는 설계 변경이며 임베딩 생성, 데이터 삭제, Neo4j 적재 또는 배포가 완료됐다는 뜻은 아니다.
 
 작성일: 2026-11-10  
-상태: **구현 전 설계**. 실제 호출·성능·배포 검증 결과가 아니다.
+상태: 작성 당시(2026-11-10)의 설계. 구현 결과와 차이는 아래 **구현 현황** 참고.
 
 관련 문서: [기초 시스템 설계도](CareerGraph_기초_시스템_설계도.md) · [NeMo Guardrails 상세 설계](CareerGraph_NeMo_Guardrails_상세설계.md)
 

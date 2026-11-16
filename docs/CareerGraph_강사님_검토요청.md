@@ -5,7 +5,7 @@
 **문서 작성일:** 2026-11-09  
 **문서 목적:** 프로젝트 아이디어, 수집한 데이터, 그래프 온톨로지의 초기 설계가 단위 프로젝트 요구사항에 적합한지 검토받기 위한 자료
 
-> 현재 직업 데이터와 그래프 적재용 파일, 평가 질문 초안은 준비했습니다. Neo4j 적재, 검색 시스템, 에이전트, UI, 품질·안전 평가의 동작은 아직 검증하지 않았습니다.
+> 작성 당시(2026-11-09)에는 직업 데이터와 그래프 적재용 파일, 평가 질문 초안만 준비된 상태였습니다. **이후 구현·평가를 마쳤습니다**(Neo4j 적재, Jev 검색 분류, Supervisor 에이전트, NeMo 가드레일, Streamlit 배포, RAGAS, Langfuse). 결과는 [README](../README.md)와 [통합 평가 보고서](CareerGraph_통합평가_보고서_20261116.md)를 참고하세요. 아래 본문은 검토 요청 당시 내용입니다.
 
 ## 1. 프로젝트 아이디어
 
@@ -237,7 +237,7 @@ Streamlit 질문 입력
 | `expanded_20261108/graph_nodes.csv` | 그래프 적재용 노드 |
 | `expanded_20261108/graph_edges.csv` | 중복 제거한 그래프 적재용 관계 |
 | `expanded_20261108/retrieval_chunks.json` | API·검토된 PDF 검색 근거 청크 |
-| `eval/evaluation_draft.csv` | 평가 문항 240개와 기대 엔티티·경로·근거 |
+| `eval/evaluation_draft.csv` | 평가 문항 228개(요청 당시 240개)와 기대 엔티티·경로·근거 |
 | `expanded_20261108/pdf_mapping_candidates_review.csv` | PDF 직업 연결을 위한 미검토 후보 |
 | `expanded_20261108/validation.json` | 데이터·관계·참조 검증 기록 |
 | `expanded_20261108/데이터_평가셋_안내.md` | 수집 범위와 파일 사용법·한계 |

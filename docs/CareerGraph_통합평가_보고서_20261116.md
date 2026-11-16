@@ -242,7 +242,7 @@ CRAG의 의도대로, 충분한 질문은 한 번에 답하고 부족한 질문�
 ## 8. 재현
 
 ```bash
-python -m pytest -q tests                                   # 54개
+python -m pytest -q tests                                   # 57개
 python scripts/run_ragas_eval.py --rag-only --concurrency 4 --output output/eval/<새 폴더>
 python scripts/aggregate_ragas_runs.py output/eval/<폴더1> output/eval/<폴더2> output/eval/<폴더3>   # 반복 실행 평균·표준편차
 python eval/guardrails/run_guardrail_eval.py                # 약 30초

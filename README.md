@@ -63,22 +63,29 @@
 ```mermaid
 flowchart LR
   U(["사용자<br/>브라우저"])
-  subgraph SC["Streamlit Community Cloud"]
+  subgraph SC["Streamlit Community Cloud (한 프로세스)"]
     UI["Streamlit UI<br/>ui/streamlit_app.py"]
     AG["LangGraph 에이전트<br/>레일 → Supervisor → 워커"]
+    RL["NeMo Guardrails + Guardrails AI<br/>입력·출력 레일(판정만)"]
     DB[("SQLite<br/>가상 회원 3명")]
   end
   N[("Neo4j Aura<br/>그래프 + 벡터 인덱스")]
-  O["OpenAI<br/>답변 · 임베딩"]
-  J["Jev (TypeSafe)<br/>검색 분류 · 정책 판정"]
+  O["OpenAI<br/>답변 · 검색 인자 · CRAG 평가 · 임베딩"]
+  J["Jev (TypeSafe)<br/>검색 방식 분류 · 정책·위기·범위 판정 · 사실 대조"]
+  L["Langfuse<br/>트레이스 (개인정보 가림)"]
   U --> UI --> AG
+  AG --- RL
   AG --- DB
   AG --> N
   AG --> O
+  RL --> J
   AG --> J
+  AG -.->|"노드 · LLM · 레일 판정"| L
 ```
 
-- **그래프 DB:** 직업(`Job`)을 중심으로 학과(`Major`)·자격(`Certificate`)·핵심능력(`Ability`)이 연결됩니다. 벡터 검색은 `Job.work_embedding`(직업 업무 설명)에서 시작해 `job_code`로 그래프 관계를 따라갑니다.
+- **그래프 DB:** 직업(`Job`)을 중심으로 학과(`Major`)·자격(`Certificate`)·핵심능력(`Ability`)이 연결됩니다. 벡터 검색(`vector`)은 `Job.work_embedding`(직업 업무 설명)을 찾고, 그래프 검색(`graph`)은 Cypher로 관계를 따라가며, 결합 검색(`hybrid`)은 벡터로 찾은 직업(`job_code`)에서 그래프 관계를 확장합니다.
+- **레일:** NeMo Guardrails는 판정만 하고(`check_async`), 판정은 Jev와 정규식(Guardrails AI)이 합니다. 검색·답변은 LangGraph가 맡습니다.
+- **트레이싱:** `LANGFUSE_*` 키가 있을 때만 켜지고, 없으면 트레이스 없이 동작합니다.
 - **회원 DB:** 가상 회원 3명(U001~U003)의 현재·목표 커리어를 SQLite에서 읽습니다. 질문에 적힌 ID가 아니라 앱이 넘긴 `selected_user_id`만 믿습니다. 실제 본인 인증이 아닙니다.
 - **배포:** Streamlit Cloud는 진입 파일 폴더의 [ui/requirements.txt](ui/requirements.txt)를 씁니다(수업용 전체 의존성은 메모리 한도를 넘김). 비밀 값은 Cloud Secrets에 둡니다([.streamlit/secrets.toml.example](.streamlit/secrets.toml.example)).
 - **Neo4j 접속:** Windows·Cloud 인증서 저장소에 Aura의 루트 인증서가 없는 경우가 있어, 검증을 끄지 않고 `certifi` CA로 검증합니다([app/tools/search.py](app/tools/search.py)).
@@ -92,6 +99,7 @@ flowchart LR
   IG -->|"차단 · 안내"| END1(["규칙별 안내"])
   PC -->|"예"| PR["회원 프로필 조회<br/>SQL"]
   PC -->|"아니오"| SE
+  PC -.->|"판정 오류"| AB
   PR --> SE["검색 워커<br/>Jev가 방식 선택<br/>vector · graph · hybrid"]
   SE --> GR["CRAG 근거 평가<br/>correct · ambiguous · incorrect"]
   GR --> SV{"Supervisor"}
@@ -102,13 +110,14 @@ flowchart LR
   SV --> VE["검증 워커<br/>근거 대조"]
   VE --> SV
   SV -->|"근거 충분"| OUT["답변"]
-  SV -->|"근거 부족 · 오류"| AB["보류 안내"]
+  SV -->|"근거 0건 · 오류"| AB["보류 · 오류 안내"]
   OUT --> OG["출력 레일<br/>정책 · 사실 대조 · 링크 · 개인정보"]
-  AB --> OG
+  AB -->|"보류"| OG
+  AB -.->|"서비스 오류(고정 문구)"| A
   OG --> A(["사용자에게 답변"])
 ```
 
-- **Supervisor:** 상태를 보고 다음 워커를 고르는 조정 계층입니다. 재검색은 한 번까지, 전체 단계는 10단계까지로 제한합니다.
+- **Supervisor:** 상태를 보고 다음 워커를 고르는 조정 계층입니다. 검색어 재작성은 한 번, verifier 의견에 따른 재검색도 한 번까지이며 전체 단계는 10단계까지로 제한합니다. 오류가 있으면 재검색 없이 오류 안내로 끝냅니다. 도식의 Supervisor 화살표는 단계가 끝날 때마다 이 노드로 돌아와 다음 워커를 고른다는 뜻입니다.
 - **CRAG(근거 평가·재작성):** 검색 직후 `grade`가 근거 중 쓸 것만 남기고 충분성을 판정합니다. 부족하면 `rewrite`가 부족한 정보를 찾는 검색어만 새로 만들어 한 번 다시 검색하고, 이전 근거와 합쳐 다시 평가합니다. 재검색 뒤에도 일부만 확인되면 확인된 부분만 답하고 없는 항목은 밝힙니다(`partial`). 실제 질문별 경로와 RAGAS 전후 비교: [통합 평가 보고서](docs/CareerGraph_통합평가_보고서_20261116.md#3-crag-동작-확인).
 - **검색 워커:** 선택된 검색 도구 하나만 모델에 주고 인자만 쓰게 합니다. Cypher는 쓰기 명령(CREATE·MERGE·DELETE 등)을 정규식으로 막아 읽기 전용으로만 실행합니다(DB 계정 권한 제한은 아닙니다). 분류가 실패하면 임의로 다른 방식으로 바꾸지 않고 오류로 처리합니다.
 - **추론·검증 워커:** 추론은 검색 근거로만 답하고, 검증은 답의 주장이 근거에 있는지 대조합니다. 근거 문서에 숨은 지시("이전 규칙을 무시하고…")가 있으면 근거에서 뺍니다.
@@ -209,18 +218,22 @@ Langfuse 트레이스로 원인을 찾아 고친 사례입니다. 재현 질문�
 ```
 app/
   main.py            # CLI (--user, --thread, --debug)
-  graph/             # LangGraph: builder, nodes, supervisor, state
+  graph/             # LangGraph: builder, nodes, supervisor, crag(근거 평가·재작성), state
   agents/            # 검색·추론·검증 워커
   router/            # Jev 검색 방식 분류, 회원 정보 필요 여부 분류
-  tools/             # Neo4j 검색(search.py), 회원 프로필 SQL(profile.py, user_db.py)
+  tools/             # Neo4j 검색(search.py), 회원 프로필 SQL(profile.py). user_db.py 는 이전 예제라 쓰지 않음
   guards/            # NeMo 레일 연결(rails.py), 액션(actions.py), 판정(judges.py), 정규식(validators.py)
-  core/              # 설정, 프롬프트, 정책 로더
+  core/              # 설정, 프롬프트, 정책 로더, Langfuse 트레이싱(tracing.py)
 rails/guard/         # NeMo 설정(config.yml)과 흐름(rails.co)
 data/                # 커리어넷 수집 데이터, 가상 회원 DB, persona.yaml(정책·안내 문구)
-eval/                # 평가셋 228문항, 가드레일 평가 스크립트와 결과
+eval/                # 평가셋 228문항, guardrails/(가드레일 평가), search_modes/(검색 방식 비교), ragas_repeats.json
+scripts/             # RAGAS 실행·요약·반복 집계, 검색 방식 비교, Neo4j 그래프 적재
+벡터검색/             # 직업 업무 설명 임베딩·인덱싱 노트북
+experiments/         # 검색 분류 비교 실험 노트북
 ui/                  # Streamlit 앱(streamlit_app.py), 실행기(backend.py), Cloud 의존성
-tests/               # 가드·그래프 연결·Neo4j 접속 테스트
-docs/                # 설계 문서
+tests/               # 가드·그래프 연결·CRAG·트레이싱·Neo4j 접속·검색 테스트
+docs/                # 설계 문서(구현 현황 표 포함), 평가·디버깅 보고서, 스크린샷(images/)
+gate/, baselines/    # 수업 템플릿의 회귀 게이트(이 프로젝트에서는 사용하지 않음)
 ```
 
 ## 실행 방법
