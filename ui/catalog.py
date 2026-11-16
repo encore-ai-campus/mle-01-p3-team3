@@ -18,30 +18,31 @@ from app.tools.profile import CAREER_FIELDS, load_own_career  # noqa: E402
 DEMO_DB_PATH = PROJECT_DIR / "data" / "careergraph_demo.db"
 
 # 화면에 보여 줄 노드 이름과 설명. supervisor 는 경로를 고르기만 하므로 빼고 그린다.
+# 아이콘은 Material Symbols 이름이며, 화면에서 :material/<이름>: 으로 그린다.
 STEP_LABELS: dict[str, tuple[str, str]] = {
-    "input_guard": ("🛡️", "질문 안전 검사"),
-    "profile_check": ("🧭", "회원 정보가 필요한지 판단"),
-    "profile": ("🗂️", "내 커리어 불러오기"),
-    "search": ("🕸️", "커리어 그래프 검색"),
-    "reasoner": ("✍️", "답변 작성"),
-    "verifier": ("🔎", "근거와 대조"),
-    "output": ("📦", "답변 정리"),
-    "abstain": ("🤔", "답변 보류"),
-    "output_guard": ("🛡️", "답변 안전 검사"),
+    "input_guard": ("shield", "질문 안전 검사"),
+    "profile_check": ("person_search", "회원 정보가 필요한지 판단"),
+    "profile": ("badge", "내 커리어 불러오기"),
+    "search": ("hub", "커리어 그래프 검색"),
+    "reasoner": ("edit_note", "답변 작성"),
+    "verifier": ("fact_check", "근거와 대조"),
+    "output": ("inventory_2", "답변 정리"),
+    "abstain": ("pause_circle", "답변 보류"),
+    "output_guard": ("verified_user", "답변 안전 검사"),
 }
 
 GUARD_LABELS = {
-    "passed": "✅ 통과",
-    "blocked": "⛔ 차단",
-    "modified": "✏️ 수정",
-    "error": "⚠️ 오류",
+    "passed": ":green[:material/check_circle:] 통과",
+    "blocked": ":red[:material/block:] 차단",
+    "modified": ":orange[:material/edit:] 수정",
+    "error": ":orange[:material/warning:] 오류",
 }
 
 VERIFY_LABELS = {
-    "supported": "✅ 근거 일치",
-    "insufficient": "🤔 근거 부족",
-    "conflict": "⚠️ 근거 충돌",
-    "error": "⚠️ 오류",
+    "supported": ":green[:material/check_circle:] 근거 일치",
+    "insufficient": ":gray[:material/help:] 근거 부족",
+    "conflict": ":orange[:material/warning:] 근거 충돌",
+    "error": ":orange[:material/warning:] 오류",
 }
 
 SEARCH_LABELS = {

@@ -5,10 +5,13 @@ Streamlit Community Cloud 의 Main file path 도 ui/streamlit_app.py 로 둔다.
 """
 from __future__ import annotations
 
-import sys
 import base64
-from html import escape
+import io
+import re
+import time
+import sys
 import uuid
+from html import escape
 from pathlib import Path
 
 import streamlit as st
@@ -31,7 +34,13 @@ from catalog import (  # noqa: E402
 
 AVATAR = str(UI_DIR / "assets" / "curri_avatar.png")
 MASCOT = str(UI_DIR / "assets" / "curri_full.png")
-USER_AVATAR = ":material/person:"
+# 내 질문 옆에 서는 사용자(학생) 캐릭터. 사람 비율의 전신 그림이라 아바타 자리에선 얼굴이 너무 작아져서,
+# 머리부터 책을 든 손까지(상반신)만 잘라 쓴다. 그림이 없으면 사람 아이콘을 쓴다.
+USER_CHARACTER = UI_DIR / "assets" / "user_student.png"
+USER_CHARACTER_CROP = (310, 0, 730, 472)  # (왼, 위, 오른, 아래) 픽셀, 1024×1024 원본 기준
+# 대화에서는 얼굴만 있는 아이콘 대신 밝게 웃는 전신 마스코트를 크게 세워 말하는 것처럼 보이게 한다.
+ASSISTANT_AVATAR = MASCOT
+GUEST_NAME = "게스트"
 
 GENERAL_EXAMPLES = [
     "간호사가 되려면 어떤 전공이 필요해?",
@@ -43,7 +52,21 @@ MEMBER_EXAMPLES = [
     "지금 내 전공으로 갈 수 있는 다른 직업은?",
 ]
 
-ERROR_REPLY = "지금은 답변을 만들 수 없어요. 잠시 후 다시 물어봐 주세요."
+ERROR_REPLY = "답변을 만들지 못했어요. 같은 질문을 한 번 더 보내 주세요."
+
+
+def explain_error(exc: Exception) -> tuple[str, str]:
+    """예외를 (진행 상태 문구, 답변 문구)로 바꾼다. 무슨 일이 있었고 어떻게 하면 되는지를 쉬운 말로 알린다."""
+
+    name = type(exc).__name__
+    text = str(exc).lower()
+    if "ratelimit" in name.lower() or "quota" in text or "spend_limit" in text:
+        return ("답변 서버의 사용 한도에 걸렸어요",
+                "답변 서버의 사용 한도에 도달해 지금은 답할 수 없어요. 관리자가 한도를 늘리면 다시 질문할 수 있어요.")
+    if "timeout" in name.lower() or "connection" in name.lower():
+        return ("답변 서버에 연결하지 못했어요",
+                "답변 서버에 연결하지 못했어요. 잠시 뒤 같은 질문을 다시 보내 주세요.")
+    return ("답변을 만들지 못했어요", ERROR_REPLY)
 
 st.set_page_config(
     page_title="커리 · CareerGraph",
@@ -89,21 +112,60 @@ def cached_members() -> list[dict[str, str]]:
     return list_demo_members()
 
 
-# ===== 사이드바 =====
+@st.cache_data(show_spinner=False)
+def image_data_uri(path: str, size: int | None = None) -> str:
+    """이미지를 data URI 로 만든다. size 를 주면 줄여서 WebP 로 바꿔 매 rerun 전송량을 줄인다(PNG 의 약 1/5)."""
+
+    raw = Path(path).read_bytes()
+    if not size:
+        return "data:image/png;base64," + base64.b64encode(raw).decode()
+    from PIL import Image
+
+    image = Image.open(io.BytesIO(raw))
+    image.thumbnail((size, size))
+    buffer = io.BytesIO()
+    image.save(buffer, format="WEBP", quality=85)
+    return "data:image/webp;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+@st.cache_data(show_spinner=False)
+def user_avatar_image() -> bytes | None:
+    """사용자 캐릭터의 상반신을 잘라 작은 WebP 로 돌려준다. 그림이 없으면 None."""
+
+    if not USER_CHARACTER.exists():
+        return None
+    from PIL import Image
+
+    image = Image.open(USER_CHARACTER).crop(USER_CHARACTER_CROP)
+    image.thumbnail((240, 240))
+    buffer = io.BytesIO()
+    image.save(buffer, format="WEBP", quality=88)
+    return buffer.getvalue()
+
+
+def user_avatar():
+    return user_avatar_image() or ":material/person:"
+
+
+# ===== 상단바 =====
 
 def render_topbar():
     """회원 선택과 대화 설정을 상단에 모은다."""
     with st.container(key="brandbar"):
         brand, action = st.columns([5, 1], vertical_alignment="center")
-        brand.markdown("<div class='curri-brand'>🧭 <strong>커리 Curri</strong><span>진로 탐색 도우미</span></div>", unsafe_allow_html=True)
+        brand.markdown(
+            f"<div class='curri-brand'><img alt='' src='{image_data_uri(AVATAR, 96)}'>"
+            "<strong>커리 Curri</strong><span>진로 탐색 도우미</span></div>",
+            unsafe_allow_html=True,
+        )
         action.button("새 대화", icon=":material/add_comment:", on_click=reset_conversation, width="stretch")
     members = cached_members()
     names = {member["user_id"]: member["display_name"] for member in members}
     with st.container(key="settings"):
-        member, trace = st.columns([7, 4], vertical_alignment="center")
+        member, trace = st.columns([8, 3], vertical_alignment="center")
         with member:
-            label, field = st.columns([1, 4], vertical_alignment="center")
-            label.markdown("**시연 회원**")
+            label, field = st.columns([1, 6], vertical_alignment="top")
+            label.markdown("<div class='curri-setting-label'>시연 회원</div>", unsafe_allow_html=True)
             with field:
                 user_id = st.selectbox("시연 회원", options=[None, *names],
                     format_func=lambda uid: "게스트 (회원 정보 없이)" if uid is None else f"{names[uid]} · {uid}",
@@ -111,11 +173,13 @@ def render_topbar():
                 st.caption("가상 회원을 선택해 맞춤 질문을 체험해 보세요. 실제 본인 인증은 아니에요.")
         with trace:
             st.toggle("답을 찾은 과정 보기", value=True, key="show_trace")
+    # 내 질문 위에 보여 줄 이름. 회원을 바꾸면 대화가 새로 열리므로 지금 선택만 쓰면 된다.
+    st.session_state.speaker_name = names.get(user_id, GUEST_NAME) if user_id else GUEST_NAME
     if user_id:
         career = load_member_career(user_id)
         with st.expander("선택한 회원의 커리어 정보", expanded=True):
             current, target = st.columns(2)
-            for column, title, prefix in ((current, "지금", "current"), (target, "🧭 목표", "target")):
+            for column, title, prefix in ((current, ":material/person: 지금", "current"), (target, ":material/flag: 목표", "target")):
                 column.markdown(f"**{title}**")
                 column.write(career.get(f"{prefix}_job", "-"))
                 column.caption(f"{career.get(f'{prefix}_major', '-')} · {career.get(f'{prefix}_certificate', '-')}")
@@ -124,13 +188,11 @@ def render_topbar():
 
 def render_welcome(user_id: str | None):
     with st.container(key="welcome"):
-        mascot = base64.b64encode(Path(MASCOT).read_bytes()).decode()
         st.markdown(
             "<div class='curri-hero'><div class='curri-copy'>"
-            "<div class='curri-eyebrow'>커리와 시작하는 진로 탐색</div>"
             "<h1>궁금한 진로 이야기,<br>여기서 시작해 볼까요?</h1>"
             "<p>직업·학과·자격증에 대해 편하게 물어보세요.</p></div>"
-            f"<div class='curri-mascot'><img alt='나침반을 든 커리 마스코트' src='data:image/png;base64,{mascot}'></div></div>",
+            f"<div class='curri-mascot'><img alt='나침반을 든 커리 마스코트' src='{image_data_uri(MASCOT, 560)}'></div></div>",
             unsafe_allow_html=True,
         )
         typed = st.chat_input("예: 간호사가 되려면 어떤 전공이 필요해?", key="welcome_input")
@@ -145,12 +207,11 @@ def render_welcome(user_id: str | None):
         if user_id:
             personal = st.columns(2)
             for index, example in enumerate(MEMBER_EXAMPLES):
-                personal[index].button(example, key=f"personal_{index}", on_click=ask, args=(example,), width="stretch", icon="🧭")
+                personal[index].button(example, key=f"personal_{index}", on_click=ask, args=(example,), width="stretch", icon=":material/explore:")
         else:
-            st.markdown("<div class='curri-tip'><span>ⓘ</span> 상단에서 시연 회원을 선택하면 ‘내 목표 직업’ 같은 맞춤 질문도 할 수 있어요.</div>", unsafe_allow_html=True)
+            with st.container(key="tip"):
+                st.markdown(":material/info: 상단에서 시연 회원을 선택하면 ‘내 목표 직업’ 같은 맞춤 질문도 할 수 있어요.")
     return typed
-
-
 
 
 # ===== 메시지 =====
@@ -160,7 +221,8 @@ def flow_html(trace: list[str]) -> str:
     for name in trace:
         icon, label = STEP_LABELS[name]
         stop = " stop" if name in {"abstain"} else ""
-        chips.append(f"<span class='curri-step{stop}'>{icon} {label}</span>")
+        # HTML 안에서는 :material/..: 문법이 풀리지 않아 Streamlit 이 싣는 아이콘 글꼴로 직접 그린다.
+        chips.append(f"<span class='curri-step{stop}'><i translate='no' aria-hidden='true'>{icon}</i>{label}</span>")
     arrow = "<span class='curri-arrow'>›</span>"
     return f"<div class='curri-flow'>{arrow.join(chips)}</div>"
 
@@ -182,7 +244,7 @@ def render_trace(meta: dict) -> None:
         if rules:
             st.caption("막은 규칙: " + ", ".join(rules))
         if meta["profile_used"]:
-            st.caption("🗂️ 선택한 회원의 저장된 커리어를 참고했어요.")
+            st.caption(":material/badge: 선택한 회원의 저장된 커리어를 참고했어요.")
 
         if meta["evidence"]:
             st.markdown(f"**찾은 근거 {len(meta['evidence'])}개**")
@@ -193,32 +255,59 @@ def is_guard_stop(meta: dict) -> bool:
     return meta.get("input_guard") in {"blocked", "modified"} or meta.get("output_guard") in {"blocked", "modified"}
 
 
-def render_answer(content: str, meta: dict | None) -> None:
+STREAM_MAX_SECONDS = 3.0  # 긴 답이어도 흘려 보여 주는 데 이 이상 걸리지 않게 한다
+STREAM_STEP_SECONDS = 0.05
+
+
+def typing_chunks(text: str):
+    """완성된 답을 어절 단위로 잘게 내보내 글자가 써지는 것처럼 보이게 한다.
+
+    모델이 쓰는 중간 글을 바로 보여 주면 근거 대조·답변 안전 검사 전의 내용이 화면에 나간다.
+    그래서 검사를 통과한 최종 답만 이렇게 흘려 보여 준다.
+    """
+
+    pieces = re.findall(r"\S+\s*|\s+", text)
+    delay = min(STREAM_STEP_SECONDS, STREAM_MAX_SECONDS / max(len(pieces), 1))
+    for piece in pieces:
+        yield piece
+        time.sleep(delay)
+
+
+def render_answer(content: str, meta: dict | None, stream: bool = False) -> None:
     if meta and is_guard_stop(meta):
         st.badge("가드레일", icon=":material/shield:", color="orange")
     elif meta and meta.get("status") == "abstain":
         st.badge("답변 보류", icon=":material/help:", color="gray")
-    st.markdown(content)
+    if stream:
+        st.write_stream(typing_chunks(content))
+    else:
+        st.markdown(content)
     if meta and st.session_state.get("show_trace"):
         render_trace(meta)
+
+
+def render_user_message(content: str, name: str | None) -> None:
+    with st.chat_message("user", avatar=user_avatar()):
+        # 이름만 HTML 로 그리고, 사용자가 쓴 질문은 HTML 해석 없이 마크다운으로 그린다.
+        st.markdown(f"<div class='curri-speaker'>{escape(name or GUEST_NAME)}</div>", unsafe_allow_html=True)
+        st.markdown(content)
 
 
 def render_history() -> None:
     for message in st.session_state.messages:
         if message["role"] == "user":
-            with st.chat_message("user", avatar=USER_AVATAR):
-                st.markdown(message["content"])
+            render_user_message(message["content"], message.get("name"))
         else:
-            with st.chat_message("assistant", avatar=AVATAR):
+            with st.chat_message("assistant", avatar=ASSISTANT_AVATAR):
                 render_answer(message["content"], message.get("meta"))
 
 
 def answer_question(question: str, user_id: str | None) -> None:
-    st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user", avatar=USER_AVATAR):
-        st.markdown(question)
+    name = st.session_state.get("speaker_name", GUEST_NAME)
+    st.session_state.messages.append({"role": "user", "content": question, "name": name})
+    render_user_message(question, name)
 
-    with st.chat_message("assistant", avatar=AVATAR):
+    with st.chat_message("assistant", avatar=ASSISTANT_AVATAR):
         status = st.status("커리가 답을 찾고 있어요…", expanded=False)
         meta = None
         try:
@@ -231,8 +320,8 @@ def answer_question(question: str, user_id: str | None) -> None:
             for kind, payload in runner.stream(question, st.session_state.thread_id, user_id):
                 if kind == "step" and payload in STEP_LABELS:
                     icon, label = STEP_LABELS[payload]
-                    status.update(label=f"{icon} {label} 중…")
-                    status.write(f"{icon} {label}")
+                    status.update(label=f":material/{icon}: {label} 중…")
+                    status.write(f":material/{icon}: {label}")
                 elif kind == "final":
                     final_state = payload
                 elif kind == "error":
@@ -241,17 +330,18 @@ def answer_question(question: str, user_id: str | None) -> None:
             meta = summarize_turn(final_state or {})
             content = meta["answer"] or ERROR_REPLY
             if is_guard_stop(meta):
-                done_label = "🛡️ 가드레일이 확인했어요"
+                done_label = "가드레일이 확인했어요"
             elif meta["status"] == "abstain":
-                done_label = "🤔 근거가 부족해 답을 보류했어요"
+                done_label = "근거가 부족해 답을 보류했어요"
             else:
                 done_label = "답을 찾았어요"
             status.update(label=done_label, state="complete")
-        except Exception as exc:  # noqa: BLE001 - 사용자에게는 오류 종류만 보인다
-            content = ERROR_REPLY
-            status.update(label=f"문제가 생겼어요 ({type(exc).__name__})", state="error")
+        except Exception as exc:  # noqa: BLE001 - 사용자에게는 원인과 할 일만, 팀에게는 오류 이름을 펼침 안에 남긴다
+            label, content = explain_error(exc)
+            status.update(label=label, state="error")
+            status.caption(f"오류 이름: {type(exc).__name__}")
 
-        render_answer(content, meta)
+        render_answer(content, meta, stream=True)
 
     st.session_state.messages.append({"role": "assistant", "content": content, "meta": meta})
 
@@ -268,6 +358,9 @@ if welcome:
         ask(typed)
         st.rerun()
 else:
+    # 첫 화면이 있던 자리를 먼저 빈칸으로 바꾼다. 이렇게 하지 않으면 대화가 그 자리에 그려지면서
+    # 첫 화면의 추천 카드 등이 답을 찾는 동안(실행이 끝날 때까지) 대화 카드 안에 흐리게 남는다.
+    st.empty()
     with st.container(key="conversation"):
         render_history()
         if st.session_state.pending_question:
@@ -283,7 +376,7 @@ else:
 with st.container(key="footer"):
     status_col, source_col = st.columns([1, 2])
     engine_slot = status_col.empty()
-    source_col.markdown("<div class='curri-source'>커리어넷 자료 기반 · 확인된 근거 안에서 안내해요.</div>", unsafe_allow_html=True)
+    source_col.markdown("<div class='curri-source'>커리어넷 자료에서 확인된 내용만 안내해요.</div>", unsafe_allow_html=True)
 
 # 기존 엔진 사전 준비 동작은 유지하며, 상태 안내는 화면 하단에 표시한다.
 if "engine_ready" not in st.session_state:
@@ -292,8 +385,8 @@ if "engine_ready" not in st.session_state:
             get_runner()
             st.session_state.engine_ready = True
         except Exception as exc:  # noqa: BLE001
-            engine_slot.caption("🟠 답변 연결을 확인해 주세요.")
+            engine_slot.caption(":orange[:material/error:] 답변 연결을 확인해 주세요.")
             with st.expander("연결 상태 자세히 보기"):
                 st.error(f"엔진을 준비하지 못했어요: {type(exc).__name__}. Secrets 설정을 확인해 주세요.")
 if st.session_state.get("engine_ready"):
-    engine_slot.markdown("<div class='curri-ready'>● <span>대화할 준비가 되었어요</span></div>", unsafe_allow_html=True)
+    engine_slot.markdown("<div class='curri-ready'><i aria-hidden='true'></i>대화할 준비가 되었어요</div>", unsafe_allow_html=True)

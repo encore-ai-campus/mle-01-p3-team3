@@ -1,83 +1,207 @@
-:root { --curri-ink: #092e2c; --curri-teal: #008e7e; }
-.stApp { background: #fbf8f3; color: var(--curri-ink); }
+/* 커리(Curri) 화면 스타일. 색은 .streamlit/config.toml 의 테마와 같은 값을 쓴다. */
+:root {
+  --curri-ink: #092e2c;
+  --curri-text: #23463c;
+  --curri-muted: #5f6b66;
+  --curri-teal: #1f9e89;
+  --curri-teal-strong: #08746b;
+  --curri-mint: #e7f5f1;
+  --curri-mint-soft: #eaf6f0;
+  --curri-paper: #fbf8f3;
+  --curri-surface: #ffffff;
+  --curri-line: #e5dfd7;
+  --curri-rule: #d5d9d4;
+  --curri-shadow: 0 5px 14px #3328190d;
+  --curri-ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* ===== 바탕 ===== */
+.stApp { background: var(--curri-paper); color: var(--curri-ink); word-break: keep-all; overflow-wrap: break-word; caret-color: var(--curri-teal-strong); }
+/* 한국어는 어절 단위로 줄바꿈한다(Streamlit 이 요소마다 break-word 를 걸어 직접 덮어쓴다). */
+.stApp :is(p, h1, h2, h3, li, strong, label, textarea, .curri-brand) { word-break: keep-all; overflow-wrap: break-word; }
+.stApp ::selection { background: #c7e9dc; color: var(--curri-ink); }
 header[data-testid="stHeader"] { background: transparent; height: 0; }
 [data-testid="stSidebar"] { display: none; }
-.stApp .block-container { max-width: 1440px; padding: 18px 40px 32px; }
+.stApp .block-container { max-width: 1440px; padding: 14px 40px 32px; }
 [data-testid="stVerticalBlock"] { gap: 16px; }
-.st-key-brandbar { padding: 0 0 18px; border-bottom: 1px solid #d5d9d4; margin-bottom: 4px; }
-.curri-brand { display: flex; align-items: center; gap: 14px; font-size: 30px; white-space: nowrap; }
-.curri-brand strong { font-weight: 800; letter-spacing: -1px; }
-.curri-brand span { font-size: 20px; border-left: 1px solid #aab7b3; padding-left: 20px; }
-.st-key-brandbar button { border: 1.5px solid #154a43; border-radius: 18px; background: transparent; font-weight: 700; }
-.st-key-settings { width: 86% !important; margin: 0 auto 4px; background: #fffefd; border: 1px solid #e6e0d9; padding: 17px 32px 12px; border-radius: 24px; box-shadow: 0 5px 13px #3025150c; }
-.st-key-settings [data-testid="stCaptionContainer"] p { font-size: 12px; margin: 0; color: #6d7771; }
-.st-key-settings [data-testid="stCaptionContainer"] { min-height: 32px; }
+
+/* ===== 상단바 ===== */
+/* 오른쪽 위 Streamlit 툴바(실행 표시·Fork·GitHub·메뉴) 자리만큼 '새 대화'를 왼쪽으로 비켜 둔다. */
+.st-key-brandbar { padding: 0 150px 14px 0; border-bottom: 1px solid var(--curri-rule); margin-bottom: 4px; }
+.st-key-brandbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap; }
+.st-key-brandbar [data-testid="stColumn"] { min-width: 0; }
+.st-key-brandbar [data-testid="stColumn"]:last-child { flex: 0 0 auto; width: auto; }
+.curri-brand { display: flex; align-items: center; gap: 12px; font-size: 30px; white-space: nowrap; }
+.curri-brand img { width: 40px; height: 40px; }
+.curri-brand strong { font-weight: 800; letter-spacing: -.03em; }
+.curri-brand span { font-size: 18px; color: var(--curri-text); border-left: 1px solid #aab7b3; padding-left: 16px; margin-left: 4px; }
+.st-key-brandbar button { border: 1.5px solid var(--curri-teal-strong); border-radius: 18px; background: transparent; font-weight: 700; padding-inline: 18px; }
+
+/* ===== 설정 ===== */
+/* 시연용 설정이라 카드로 감싸지 않고 상단바 아래 한 줄로 가볍게 둔다. */
+.st-key-settings { padding: 2px 4px 0; margin-bottom: 10px; }
+.st-key-settings [data-testid="stCaptionContainer"] p { font-size: 12px; margin: 0; color: var(--curri-muted); }
 .st-key-settings [data-testid="stVerticalBlock"] { gap: 5px; }
-.st-key-settings [data-baseweb="select"] > div { background: white; border-color: #b7bbb6; border-radius: 14px; }
-.st-key-settings [data-testid="stToggle"] { padding: 13px 0 13px 30px; border-left: 1px solid #c7c9c5; }
-.st-key-settings [data-testid="stToggle"] p { font-size: 18px; font-weight: 700; color: var(--curri-ink); }
-.st-key-welcome { background: #fff; border: 1px solid #e5dfd7; padding: 30px 38px 20px; border-radius: 30px; box-shadow: 0 5px 15px #3328190d; }
-.curri-hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 0 26px 10px; min-height: 270px; }
-.curri-eyebrow { font-size: 21px; font-weight: 700; margin-bottom: 14px; }
-.curri-hero h1 { color: var(--curri-ink); font-size: clamp(32px, 3.5vw, 53px); letter-spacing: -1.8px; line-height: 1.3; font-weight: 800; padding: 0; margin: 0 0 14px; }
-.curri-hero p { font-size: 21px; color: #717b76; margin: 0; letter-spacing: -.5px; }
+.st-key-settings .react-aria-ComboBox [role="group"] { background: var(--curri-surface); border-color: var(--curri-line); min-height: 38px; }
+.st-key-settings .st-key-show_trace { padding: 6px 0 6px 24px; border-left: 1px solid var(--curri-rule); }
+.st-key-settings .st-key-show_trace p { font-size: 15px; font-weight: 600; color: var(--curri-text); }
+/* 선택 상자(40px) 높이에 맞춰 가운데 정렬한다. 아래 안내 문구까지 합친 높이에 맞추면 아래로 처져 보인다. */
+.curri-setting-label { height: 40px; display: flex; align-items: center; font-size: 15px; font-weight: 600; color: var(--curri-text); white-space: nowrap; }
+
+/* ===== 첫 화면 ===== */
+.st-key-welcome { background: var(--curri-surface); border: 1px solid var(--curri-line); padding: 30px 38px 24px; border-radius: 30px; box-shadow: var(--curri-shadow); }
+/* 제목·설명의 왼쪽 끝을 아래 입력창·추천 카드와 같은 선에 맞춘다(좌우 끝선 통일). */
+.curri-hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 0 0 8px; min-height: 260px; }
+.curri-hero h1 { color: var(--curri-ink); font-size: clamp(32px, 3.5vw, 53px); letter-spacing: -.034em; line-height: 1.3; font-weight: 800; padding: 0; margin: 0 0 16px; text-wrap: balance; }
+.curri-hero p { font-size: 20px; color: var(--curri-muted); margin: 0; letter-spacing: -.02em; }
 .curri-mascot { width: 28%; flex-shrink: 0; background: radial-gradient(ellipse, #e9f8ef 55%, transparent 56%); text-align: center; }
 .curri-mascot img { height: 265px; max-width: 100%; object-fit: contain; }
-.st-key-welcome [data-testid="stChatInput"] { border: 2px solid #08746b; border-radius: 21px; background: white; min-height: 72px; box-shadow: 0 3px 5px #164a4212; }
-.st-key-welcome [data-testid="stChatInput"] textarea { font-size: 20px; padding: 19px 22px; color: #173f37; }
-.st-key-welcome [data-testid="stChatInput"] > div, .st-key-welcome [data-testid="stChatInput"] textarea { background: white !important; }
-.st-key-welcome [data-testid="stChatInputSubmitButton"] { background: #c7e9dc; border-radius: 15px; margin: 8px; width: 52px; height: 50px; }
-.curri-suggestions-title { font-size: 21px; font-weight: 700; margin-top: 5px; }
-[class*="st-key-question_"] button { width: 100%; position: relative; border: 0; border-radius: 21px; min-height: 170px; padding: 21px 26px; text-align: left; justify-content: flex-start; align-items: flex-start; color: var(--curri-ink); transition: transform .16s, box-shadow .16s; }
-.st-key-question_0 button { background: #fff0e7; }
-.st-key-question_1 button { background: #f0eaff; }
-.st-key-question_2 button { background: #e6f6ed; }
-[class*="st-key-question_"] button:hover { transform: translateY(-3px); box-shadow: 0 6px 14px #123d3310; color: #006f60; }
-[class*="st-key-question_"] button:focus-visible { outline: 3px solid #138575; outline-offset: 3px; }
-[class*="st-key-question_"] button [data-testid="stIconMaterial"] { font-size: 28px; }
-[class*="st-key-question_"] button p { text-align: left; line-height: 1.5; font-size: 15px; }
-[class*="st-key-question_"] button strong { font-size: 21px; font-weight: 750; line-height: 1.45; }
-[class*="st-key-question_"] button::after { content: '↗'; position: absolute; right: 22px; bottom: 8px; font-size: 27px; }
-[class*="st-key-question_"] button { align-items: stretch; }
-[class*="st-key-question_"] button [data-testid="stIconMaterial"] { position: absolute; left: 24px; top: 22px; }
-[class*="st-key-question_"] button [data-testid="stMarkdownContainer"] { width: 100%; }
-[class*="st-key-question_"] button p { word-break: keep-all; overflow-wrap: break-word; }
-[class*="st-key-question_"] button p:first-child { padding-left: 36px; margin-bottom: 15px; }
-[class*="st-key-question_"] button strong { font-size: clamp(17px, 1.6vw, 23px); }
-.curri-tip { display: flex; align-items: center; gap: 15px; background: #eaf6f0; color: #23463c; border-radius: 22px; padding: 11px 22px; font-size: 16px; }
-.curri-tip span { font-size: 25px; }
+
+.st-key-welcome [data-testid="stChatInput"] { border: 2px solid var(--curri-teal-strong); border-radius: 21px; background: var(--curri-surface); min-height: 68px; box-shadow: 0 3px 6px #164a4212; transition: box-shadow .2s var(--curri-ease); }
+.st-key-welcome [data-testid="stChatInput"]:focus-within { box-shadow: 0 0 0 4px #08746b26; }
+.st-key-welcome [data-testid="stChatInput"] textarea { font-size: 18px; padding: 18px 22px; color: var(--curri-text); }
+.st-key-welcome [data-testid="stChatInput"] > div, .st-key-welcome [data-testid="stChatInput"] textarea { background: var(--curri-surface) !important; }
+.st-key-welcome [data-testid="stChatInputSubmitButton"] { background: #c7e9dc; border-radius: 15px; margin: 8px; width: 50px; height: 48px; }
+.st-key-welcome [data-testid="stChatInputSubmitButton"]:not(:disabled) { background: var(--curri-teal-strong); color: #fff; }
+
+.curri-suggestions-title { font-size: 20px; font-weight: 700; margin-top: 12px; }
+
+/* 추천 질문 카드: 아이콘·분류가 한 줄, 질문은 그 아래 전체 폭 */
+[class*="st-key-question_"] button { width: 100%; height: 100%; position: relative; border: 1px solid var(--card-line); background: var(--card-bg); border-radius: 20px; min-height: 128px; padding: 20px 52px 22px 22px; color: var(--curri-ink); justify-content: flex-start; align-items: flex-start; text-align: left; transition: transform .2s var(--curri-ease), box-shadow .2s var(--curri-ease), background-color .2s var(--curri-ease), border-color .2s var(--curri-ease); }
+[class*="st-key-question_"] button > div, [class*="st-key-question_"] button > div > span { width: 100%; }
+[class*="st-key-question_"] button > div > span { display: grid; grid-template-columns: auto 1fr; align-items: center; justify-items: start; column-gap: 10px; row-gap: 14px; }
+[class*="st-key-question_"] button [data-testid="stMarkdownContainer"] { display: contents; }
+[class*="st-key-question_"] button [data-testid="stIconMaterial"] { font-size: 24px; color: var(--card-accent); }
+[class*="st-key-question_"] button p { margin: 0; text-align: left; font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--card-accent); }
+[class*="st-key-question_"] button p:last-child { grid-column: 1 / -1; }
+[class*="st-key-question_"] button strong { display: block; font-size: clamp(17px, 1.5vw, 22px); font-weight: 750; line-height: 1.45; color: var(--curri-ink); }
+[class*="st-key-question_"] button::after { content: ''; position: absolute; right: 20px; top: 22px; width: 20px; height: 20px; background: var(--card-accent); -webkit-mask: var(--curri-arrow) center / contain no-repeat; mask: var(--curri-arrow) center / contain no-repeat; transition: transform .2s var(--curri-ease); }
+[class*="st-key-question_"] { --curri-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17 17 7M8 7h9v9'/%3E%3C/svg%3E"); }
+/* 카드마다 색은 다르게, 분류명·아이콘·화살표는 그 카드 색의 진한 톤으로 맞춘다. */
+.st-key-question_0 { --card-bg: #fff0e7; --card-hover: #ffe5d6; --card-line: #f6dccb; --card-edge: #ecb99a; --card-accent: #a24a17; }
+.st-key-question_1 { --card-bg: #f0eaff; --card-hover: #e7deff; --card-line: #e0d6fa; --card-edge: #bfaef0; --card-accent: #5b3fa8; }
+.st-key-question_2 { --card-bg: #e6f6ed; --card-hover: #d9f0e3; --card-line: #cfe9db; --card-edge: #9fd3b8; --card-accent: var(--curri-teal-strong); }
+[class*="st-key-question_"] button:hover { transform: translateY(-2px); background: var(--card-hover); border-color: var(--card-edge); box-shadow: 0 8px 18px #123d3314; color: var(--curri-ink); }
+[class*="st-key-question_"] button:hover::after { transform: translate(2px, -2px); }
+[class*="st-key-question_"] button:active { transform: translateY(-1px); }
+[class*="st-key-question_"] button:focus-visible { outline: 3px solid var(--curri-teal-strong); outline-offset: 3px; }
+
+/* Streamlit 이 마크다운 래퍼 높이를 고정하므로 배경·여백은 문단에 직접 준다. */
+.st-key-tip p { margin: 0; padding: 2px 2px 0; color: var(--curri-muted); font-size: 14px; }
+.st-key-tip p > span[role="img"] { font-size: 18px; color: var(--curri-teal-strong); margin-right: 4px; vertical-align: -4px !important; }
+
+/* ===== 하단 ===== */
 .st-key-footer { padding: 0 5px; }
-.curri-source { text-align: right; color: #57685f; font-size: 13px; padding-top: 4px; }
-.curri-ready { color: #19a981; font-size: 18px; }
-.curri-ready span { font-size: 15px; font-weight: 600; color: #23473c; margin-left: 8px; }
-.st-key-conversation { background: white; padding: 24px; border-radius: 24px; border: 1px solid #e5dfd7; }
+.st-key-footer [data-testid="stHorizontalBlock"] { align-items: center; }
+.curri-source { text-align: right; color: var(--curri-muted); font-size: 13px; }
+.curri-ready { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--curri-text); }
+.curri-ready i { width: 10px; height: 10px; border-radius: 50%; background: var(--curri-teal); box-shadow: 0 0 0 3px #1f9e8926; }
+
+/* ===== 대화 ===== */
+/* 카드는 첫 화면 카드처럼 전체 폭으로 두어 상단바·설정 줄과 기준선을 맞추고, 안쪽 대화 줄(최대 1040px)은 가운데에 둔다.
+   왼쪽엔 커리, 오른쪽엔 사용자 캐릭터가 서는 대칭 구도다. 아래 입력창도 같은 변수를 써서 대화 줄과 같은 폭·같은 중심에 놓는다.
+   (% 는 쓰는 자리의 폭 기준인데, 카드와 입력창 상자가 같은 폭이라 결과도 같다.) */
+.stApp { --conv-pad-l: max(32px, calc((100% - 1040px) / 2)); --conv-pad-r: var(--conv-pad-l); }
+.st-key-conversation { background: var(--curri-surface); padding: 28px var(--conv-pad-r) 28px var(--conv-pad-l); border-radius: 24px; border: 1px solid var(--curri-line); box-shadow: var(--curri-shadow); gap: 22px; }
+.st-key-conversation [data-testid="stChatMessage"] { padding: 0; background: transparent; gap: 12px; }
+.st-key-conversation [data-testid="stChatMessageContent"] p, .st-key-conversation [data-testid="stChatMessageContent"] li { font-size: 16px; line-height: 1.7; color: var(--curri-ink); }
+/* 커리가 말하는 모습: 전신 마스코트를 크게 세우고, 답변 본문은 커리 쪽으로 꼬리가 달린 말풍선에 담는다. */
+.st-key-conversation img[alt="assistant avatar"] { width: 92px; height: 104px; object-fit: contain; border-radius: 0; margin-top: -6px; }
+.st-key-conversation [aria-label="Chat message from assistant"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:not(:has(.stMarkdownBadge)) [data-testid="stMarkdownContainer"] {
+  /* 말풍선 폭은 답변 길이에 맞추고, 긴 답변만 대화 줄 끝까지 넓어진다. */
+  width: fit-content; max-width: 100%; box-sizing: border-box;
+  position: relative; margin-bottom: 0; padding: 14px 20px; background: var(--curri-paper); border: 1px solid var(--curri-line); border-radius: 6px 20px 20px 20px;
+}
+.st-key-conversation [aria-label="Chat message from assistant"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:not(:has(.stMarkdownBadge)) [data-testid="stMarkdownContainer"]::before {
+  content: ''; position: absolute; left: -7px; top: 16px; width: 12px; height: 12px; background: var(--curri-paper); border-left: 1px solid var(--curri-line); border-bottom: 1px solid var(--curri-line); transform: rotate(45deg);
+}
+.st-key-conversation [aria-label="Chat message from assistant"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:not(:has(.stMarkdownBadge)) [data-testid="stMarkdownContainer"] > :last-child { margin-bottom: 0; }
+/* 사용자 말: 오른쪽에 사용자 캐릭터를 커리와 같은 크기로 세우고, 민트 말풍선의 꼬리가 캐릭터 쪽을 향한다. */
+.st-key-conversation [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) { flex-direction: row-reverse; }
+.st-key-conversation img[alt="user avatar"] { width: 92px; height: 104px; object-fit: contain; border-radius: 0; margin-top: -6px; }
+/* 상반신만 잘라 쓴 그림이라 아래 끝이 일자로 끊겨 보이지 않게 살짝 흐려 지운다. */
+.st-key-conversation img[alt="user avatar"] { -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
+/* 사용자 그림이 없을 때 쓰는 아이콘도 같은 자리·같은 무게로 보이게 민트 원에 담는다. */
+.st-key-conversation [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) [data-testid="stChatMessageAvatarCustom"] { width: 92px; height: 92px; flex-shrink: 0; border-radius: 50%; background: var(--curri-mint); border: 0; display: flex; align-items: center; justify-content: center; }
+.st-key-conversation [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) [data-testid="stChatMessageAvatarCustom"] [data-testid="stIconMaterial"] { font-size: 44px; color: var(--curri-teal-strong); }
+/* Streamlit 이 바깥 상자 높이를 고정하므로 말풍선은 문단에 직접 그린다. */
+/* Streamlit 은 문단 아래 여백을 상쇄하려고 마크다운 상자에 음수 margin 을 건다. 문단 여백을 0 으로 두므로 함께 0 으로 맞춘다. */
+.st-key-conversation [aria-label="Chat message from user"] [data-testid="stMarkdownContainer"] { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; margin-bottom: 0; }
+.st-key-conversation [aria-label="Chat message from user"] [data-testid="stVerticalBlock"] { gap: 4px; }
+.curri-speaker { font-size: 13px; font-weight: 600; color: var(--curri-muted); padding-right: 6px; }
+.st-key-conversation [aria-label="Chat message from user"] p { position: relative; margin: 0; max-width: min(78%, 620px); background: var(--curri-mint); border-radius: 20px 6px 20px 20px; padding: 10px 18px; }
+.st-key-conversation [aria-label="Chat message from user"] p::after { content: ''; position: absolute; right: -6px; top: 14px; width: 12px; height: 12px; background: var(--curri-mint); transform: rotate(45deg); }
+.st-key-conversation [data-testid="stExpander"] details { border-color: var(--curri-line); border-radius: 14px; }
+/* 접혀 있을 땐 제목 길이만큼만, 펼치면 근거 표가 들어가도록 전체 폭으로. */
+.st-key-conversation [data-testid="stExpander"] details:not([open]) { width: fit-content; padding-right: 8px; }
+.st-key-conversation [data-testid="stExpander"] summary p { font-size: 14px; color: var(--curri-muted); }
+[data-testid="stBottom"], [data-testid="stBottom"] > div { background: var(--curri-paper); }
+[data-testid="stBottomBlockContainer"] { max-width: 1440px; padding-inline: 40px; }
+.st-key-conversation_input { box-sizing: border-box; padding-left: var(--conv-pad-l); padding-right: var(--conv-pad-r); }
+.st-key-conversation_input [data-testid="stChatInput"] { border: 2px solid var(--curri-teal-strong); border-radius: 18px; background: var(--curri-surface); box-shadow: var(--curri-shadow); }
+.st-key-conversation_input [data-testid="stChatInput"] > div, .st-key-conversation_input textarea { background: var(--curri-surface) !important; }
+.st-key-conversation_input [data-testid="stChatInput"]:focus-within { box-shadow: 0 0 0 4px #08746b26; }
+.st-key-conversation_input [data-testid="stChatInputSubmitButton"]:not(:disabled) { background: var(--curri-teal-strong); color: #fff; }
 .curri-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
-.curri-step { background: #e7f5f1; border: 1px solid #cfe8e2; border-radius: 18px; padding: 3px 10px; font-size: 13px; }
+.curri-step { display: inline-flex; align-items: center; gap: 4px; background: var(--curri-mint); border: 1px solid #cfe8e2; border-radius: 18px; padding: 3px 10px; font-size: 13px; }
+.curri-step > i { font-family: "Material Symbols Rounded"; font-style: normal; font-size: 16px; line-height: 1; color: var(--curri-teal-strong); }
 .curri-step.stop { background: #fff4e5; border-color: #f3d19c; }
+.curri-step.stop > i { color: #a45a00; }
 .curri-arrow { color: #8aa6a0; }
+
+/* ===== 접근성 바닥선 ===== */
+/* 입력창 안내 문구: 기본은 60% 투명이라 흰 바탕 대비가 3.9:1 이다. 4.5:1 이상이 되게 불투명한 회색을 쓴다. */
+.stApp [data-testid="stChatInput"] textarea::placeholder { color: var(--curri-muted); opacity: 1; }
+/* 손가락으로 누르는 곳은 44px 이상 */
+.st-key-brandbar button { min-height: 44px; }
+.st-key-conversation_input [data-testid="stChatInputSubmitButton"] { width: 44px; height: 44px; border-radius: 12px; }
+.st-key-conversation [data-testid="stExpander"] summary { min-height: 44px; }
+.st-key-show_trace label { min-height: 44px; align-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="st-key-question_"] button, [class*="st-key-question_"] button::after { transition: none; }
+  [class*="st-key-question_"] button:hover, [class*="st-key-question_"] button:hover::after { transform: none; }
+}
+
 @media (max-width: 800px) {
- .stApp .block-container { padding: 15px 18px 28px; }
- .curri-brand { font-size: 23px; gap: 6px; }
- .curri-brand span { font-size: 14px; padding-left: 10px; }
- .st-key-settings { width: 100% !important; padding: 14px 18px; }
- .st-key-settings [data-testid="stToggle"] { padding-left: 0; border: 0; }
- .st-key-settings [data-testid="stToggle"] p { font-size: 15px; }
- .st-key-welcome { padding: 22px 20px; }
- .curri-hero { padding: 0 0 10px; min-height: 220px; gap: 5px; }
- .curri-hero h1 { font-size: 34px; }
- .curri-eyebrow, .curri-hero p { font-size: 16px; }
- .curri-mascot img { height: 190px; }
- [class*="st-key-question_"] button { padding: 16px; min-height: 160px; }
- [class*="st-key-question_"] button strong { font-size: 17px; }
- .curri-tip { font-size: 14px; }
+  /* 좁은 화면은 툴바 옆에 버튼을 둘 자리가 없어 툴바 아래로 한 줄 내린다. */
+  .stApp .block-container { padding: 52px 18px 28px; }
+  .st-key-brandbar { padding-right: 0; }
+  .curri-brand { font-size: 23px; gap: 8px; }
+  .curri-brand img { width: 32px; height: 32px; }
+  .curri-brand span { font-size: 14px; padding-left: 10px; }
+  .st-key-settings { padding: 0 2px; }
+  .curri-setting-label { height: auto; }
+  /* 안내 문구가 두 줄로 넘치면 입력창이 커지므로 한 줄에서 말줄임한다. */
+  [data-testid="stChatInput"] textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .st-key-settings .st-key-show_trace { padding-left: 0; border: 0; }
+  .st-key-settings .st-key-show_trace p { font-size: 15px; }
+  .st-key-welcome { padding: 22px 20px; }
+  .stApp { --conv-pad-l: 16px; --conv-pad-r: 16px; }
+  .st-key-conversation { padding-block: 20px; }
+  [data-testid="stBottomBlockContainer"] { padding-inline: 18px; }
+  .st-key-conversation [aria-label="Chat message from user"] p { max-width: 88%; }
+  .st-key-conversation img[alt="assistant avatar"], .st-key-conversation img[alt="user avatar"] { width: 56px; height: 64px; }
+  .st-key-conversation [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) [data-testid="stChatMessageAvatarCustom"] { width: 52px; height: 52px; }
+  .st-key-conversation [data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) [data-testid="stChatMessageAvatarCustom"] [data-testid="stIconMaterial"] { font-size: 28px; }
+  .st-key-conversation [data-testid="stChatMessage"] { gap: 8px; }
+  .curri-hero { padding: 0 0 8px; min-height: 210px; gap: 8px; }
+  .curri-hero h1 { font-size: 34px; }
+  .curri-hero p { font-size: 16px; }
+  .curri-mascot img { height: 190px; }
+  .st-key-welcome [data-testid="stChatInput"] { min-height: 60px; }
+  .st-key-welcome [data-testid="stChatInput"] textarea { font-size: 16px; padding: 16px 18px; }
+  .curri-suggestions-title { font-size: 18px; }
+  [class*="st-key-question_"] button { padding: 18px 48px 18px 18px; min-height: 0; }
+  [class*="st-key-question_"] button strong { font-size: 17px; }
 }
 @media (max-width: 560px) {
- .curri-brand span { display: none; }
- .curri-hero h1 { font-size: 29px; }
- .curri-hero { min-height: 200px; }
- .curri-mascot { width: 24%; }
- .curri-mascot img { height: 140px; }
- .curri-hero p { font-size: 14px; }
- [class*="st-key-question_"] button { min-height: 120px; }
- .curri-source { text-align: left; }
+  .curri-brand span { display: none; }
+  .st-key-brandbar button { padding-inline: 12px; }
+  .curri-hero h1 { font-size: 28px; }
+  .curri-hero { min-height: 0; padding-bottom: 4px; }
+  .curri-mascot { width: 26%; }
+  .curri-mascot img { height: 120px; }
+  .curri-hero p { font-size: 15px; }
+  .curri-source { text-align: left; }
 }
