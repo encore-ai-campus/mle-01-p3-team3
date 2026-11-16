@@ -288,8 +288,38 @@ def _deduplicate_evidence(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result[:MAX_EVIDENCE]
 
 
+EXACT_NAME_MIN_LENGTH = 3   # 두 글자 이하 직업명("기자", "검사")은 다른 낱말 안에서 우연히 맞아 제외한다
+EXACT_NAME_MAX_MATCHES = 3
+
+
+def _exact_name_rows(question: str) -> list[dict[str, Any]]:
+    """질문에 직업명이 그대로 들어 있으면 그 직업의 업무 설명 행을 돌려준다(긴 이름 우선, 최대 3개).
+
+    업무 설명을 임베딩한 벡터 검색은 "전문의사"처럼 흔한 낱말이 든 직업명을 의미로만 찾아 "시장 및 여론조사전문가" 같은
+    엉뚱한 직업을 상위에 올리는 경우가 있다. 직업명이 질문에 그대로 있으면 그 직업을 벡터 결과보다 앞에 둔다.
+    """
+    return _run_read_query(
+        f"""
+        MATCH (node:Job)
+        WHERE node.name IS NOT NULL AND size(node.name) >= {EXACT_NAME_MIN_LENGTH}
+          AND $question CONTAINS node.name AND node.work IS NOT NULL
+        RETURN
+            node.id AS node_id,
+            node.source_id AS job_code,
+            node.name AS job_name,
+            node.work AS work,
+            'work' AS source_field,
+            node.source AS source,
+            1.0 AS score
+        ORDER BY size(node.name) DESC
+        LIMIT {EXACT_NAME_MAX_MATCHES}
+        """,
+        question=question,
+    )
+
+
 def _vector_search(question: str, top_k: int) -> list[dict[str, Any]]:
-    """Job.work_embedding 벡터 인덱스를 조회한다."""
+    """Job.work_embedding 벡터 인덱스를 조회하고, 질문에 직업명이 그대로 있으면 그 직업을 맨 앞에 둔다."""
 
     if top_k < 1 or top_k > 50:
         raise ValueError("top_k는 1에서 50 사이여야 합니다.")
@@ -315,13 +345,22 @@ def _vector_search(question: str, top_k: int) -> list[dict[str, Any]]:
         score
     """
 
-    return _normalize_rows(
-        _run_read_query(
-            query,
-            top_k=top_k,
-            embedding=embedding,
-        )
+    vector_rows = _run_read_query(
+        query,
+        top_k=top_k,
+        embedding=embedding,
     )
+    try:
+        exact_rows = _exact_name_rows(question)
+    except Exception:  # noqa: BLE001 - 직업명 보강이 실패해도 벡터 결과는 그대로 쓴다
+        exact_rows = []
+    return _merge_exact_first(exact_rows, vector_rows, top_k)
+
+
+def _merge_exact_first(exact_rows: list[dict[str, Any]], vector_rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+    """직업명이 맞은 행을 앞에 두고 벡터 행을 이어 붙인 뒤 근거 ID 기준으로 중복을 없애 top_k 개만 돌려준다."""
+    normalized = _normalize_rows([*exact_rows, *vector_rows])
+    return normalized[:top_k]
 
 
 @tool

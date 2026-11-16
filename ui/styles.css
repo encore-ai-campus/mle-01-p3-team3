@@ -69,6 +69,9 @@ header[data-testid="stHeader"] { background: transparent; height: 0; }
 /* 추천 질문 카드: 아이콘·분류가 한 줄, 질문은 그 아래 전체 폭 */
 [class*="st-key-question_"] button { width: 100%; height: 100%; position: relative; border: 1px solid var(--card-line); background: var(--card-bg); border-radius: 20px; min-height: 128px; padding: 20px 52px 22px 22px; color: var(--curri-ink); justify-content: flex-start; align-items: flex-start; text-align: left; transition: transform .2s var(--curri-ease), box-shadow .2s var(--curri-ease), background-color .2s var(--curri-ease), border-color .2s var(--curri-ease); }
 [class*="st-key-question_"] button > div, [class*="st-key-question_"] button > div > span { width: 100%; }
+/* 같은 줄의 카드는 그 줄에서 가장 높은 카드에 맞춰 늘린다(열 → 카드 → 버튼까지 높이를 이어 준다). */
+[data-testid="stColumn"]:has([class*="st-key-question_"]) > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"],
+[class*="st-key-question_"], [class*="st-key-question_"] > [data-testid="stElementContainer"], [class*="st-key-question_"] .stButton { height: 100%; }
 [class*="st-key-question_"] button > div > span { display: grid; grid-template-columns: auto 1fr; align-items: center; justify-items: start; column-gap: 10px; row-gap: 14px; }
 [class*="st-key-question_"] button [data-testid="stMarkdownContainer"] { display: contents; }
 [class*="st-key-question_"] button [data-testid="stIconMaterial"] { font-size: 24px; color: var(--card-accent); }
@@ -81,10 +84,15 @@ header[data-testid="stHeader"] { background: transparent; height: 0; }
 .st-key-question_0 { --card-bg: #fff0e7; --card-hover: #ffe5d6; --card-line: #f6dccb; --card-edge: #ecb99a; --card-accent: #a24a17; }
 .st-key-question_1 { --card-bg: #f0eaff; --card-hover: #e7deff; --card-line: #e0d6fa; --card-edge: #bfaef0; --card-accent: #5b3fa8; }
 .st-key-question_2 { --card-bg: #e6f6ed; --card-hover: #d9f0e3; --card-line: #cfe9db; --card-edge: #9fd3b8; --card-accent: var(--curri-teal-strong); }
+.st-key-question_3 { --card-bg: #fff6d9; --card-hover: #ffefc2; --card-line: #f5e4b0; --card-edge: #e6c76a; --card-accent: #7f5600; }
+.st-key-question_4 { --card-bg: #ffe8ee; --card-hover: #ffdbe4; --card-line: #f7d2dc; --card-edge: #eaa3b5; --card-accent: #a3324f; }
 [class*="st-key-question_"] button:hover { transform: translateY(-2px); background: var(--card-hover); border-color: var(--card-edge); box-shadow: 0 8px 18px #123d3314; color: var(--curri-ink); }
 [class*="st-key-question_"] button:hover::after { transform: translate(2px, -2px); }
 [class*="st-key-question_"] button:active { transform: translateY(-1px); }
 [class*="st-key-question_"] button:focus-visible { outline: 3px solid var(--curri-teal-strong); outline-offset: 3px; }
+/* 시연 회원을 고르기 전의 '내 커리어' 카드: 흐리게 두고 눌림·떠오름 효과를 끈다. */
+[class*="st-key-question_"] button:disabled, [class*="st-key-question_"] button:disabled:hover { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; background: var(--card-bg); border-color: var(--card-line); }
+[class*="st-key-question_"] button:disabled::after { display: none; }
 
 /* Streamlit 이 마크다운 래퍼 높이를 고정하므로 배경·여백은 문단에 직접 준다. */
 .st-key-tip p { margin: 0; padding: 2px 2px 0; color: var(--curri-muted); font-size: 14px; }

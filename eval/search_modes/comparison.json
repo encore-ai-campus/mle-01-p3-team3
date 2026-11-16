@@ -1,0 +1,104 @@
+{
+  "일반": {
+    "vector": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.967,
+      "evidence_recall": 0.967,
+      "hit_all": 0.967,
+      "mean_evidence": 5.0
+    },
+    "graph": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.967,
+      "evidence_recall": 0.1,
+      "hit_all": 0.1,
+      "mean_evidence": 1.1
+    },
+    "hybrid": {
+      "n": 30,
+      "errors": 1,
+      "job_recall": 0.967,
+      "evidence_recall": 0.933,
+      "hit_all": 0.933,
+      "mean_evidence": 9.3
+    },
+    "system": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.967,
+      "evidence_recall": 0.967,
+      "hit_all": 0.967,
+      "mean_evidence": 1.0
+    }
+  },
+  "Multi-hop": {
+    "vector": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.817,
+      "evidence_recall": 0.0,
+      "hit_all": 0.0,
+      "mean_evidence": 5.0
+    },
+    "graph": {
+      "n": 30,
+      "errors": 3,
+      "job_recall": 0.867,
+      "evidence_recall": 0.867,
+      "hit_all": 0.867,
+      "mean_evidence": 3.9
+    },
+    "hybrid": {
+      "n": 30,
+      "errors": 1,
+      "job_recall": 0.9,
+      "evidence_recall": 0.817,
+      "hit_all": 0.8,
+      "mean_evidence": 10.8
+    },
+    "system": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 1.0,
+      "evidence_recall": 1.0,
+      "hit_all": 1.0,
+      "mean_evidence": 5.0
+    }
+  },
+  "관계비교": {
+    "vector": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.867,
+      "evidence_recall": 0.0,
+      "hit_all": 0.0,
+      "mean_evidence": 5.0
+    },
+    "graph": {
+      "n": 30,
+      "errors": 1,
+      "job_recall": 0.717,
+      "evidence_recall": 0.717,
+      "hit_all": 0.5,
+      "mean_evidence": 1.4
+    },
+    "hybrid": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.933,
+      "evidence_recall": 0.85,
+      "hit_all": 0.8,
+      "mean_evidence": 8.1
+    },
+    "system": {
+      "n": 30,
+      "errors": 0,
+      "job_recall": 0.917,
+      "evidence_recall": 0.917,
+      "hit_all": 0.833,
+      "mean_evidence": 1.8
+    }
+  }
+}
