@@ -5,8 +5,8 @@
 > 직업·학과·자격·능력의 관계를 **그래프로 찾아 근거와 함께 답하는** 진로 탐색 챗봇입니다. 커리어넷 직업 552개를 벡터 검색, 관계 그래프 검색, 두 방식을 섞은 검색 중 질문에 맞는 방식으로 찾고, **근거가 없으면 지어내지 않고 보류합니다.** 가상 회원의 저장된 커리어(SQL)를 참고한 맞춤 답변과, 입력·출력 가드레일(NeMo Guardrails)도 함께 제공합니다.
 
 - **배포 앱:** <https://mle-01-p3-team3-bglbtfr4mtsh3wgbczkeha.streamlit.app/> · Streamlit Community Cloud + Neo4j Aura + SQLite
-- **문서:** [기초 시스템 설계도](docs/CareerGraph_기초_시스템_설계도.md) · [에이전트 상세설계](docs/CareerGraph_에이전트_상세설계.md) · [가드레일 적용 명세서](docs/CareerGraph_Guardrails_적용명세서.md) · [NeMo 상세설계](docs/CareerGraph_NeMo_Guardrails_상세설계.md) · [가상 회원 접근제어 설계](docs/CareerGraph_가상회원_커리어_접근제어_데모설계.md) · [데이터](data/README.md) · [평가셋 채점 규칙](eval/CareerGraph_평가셋_채점규칙.md)
-- 엔코아 AI 캠퍼스 3인 팀 프로젝트(2026-11, 5일). 진로 결정을 대신하지 않으며, 관련 자격을 **필수 자격으로 단정하지 않습니다.**
+- **문서:** [기초 시스템 설계도](docs/CareerGraph_기초_시스템_설계도.md) · [에이전트 상세설계](docs/CareerGraph_에이전트_상세설계.md) · [가드레일 적용 명세서](docs/CareerGraph_Guardrails_적용명세서.md) · [NeMo 상세설계](docs/CareerGraph_NeMo_Guardrails_상세설계.md) · [가상 회원 접근제어 설계](docs/CareerGraph_가상회원_커리어_접근제어_데모설계.md) · [데이터](data/README.md) · [평가셋 채점 규칙](eval/CareerGraph_평가셋_채점규칙.md) · [**통합 평가 보고서**](docs/CareerGraph_통합평가_보고서_20261116.md)
+- 엔코아 AI 캠퍼스 4인 팀 프로젝트(2026-11, 5일). 진로 결정을 대신하지 않으며, 관련 자격을 **필수 자격으로 단정하지 않습니다.**
 
 ## 데모
 
@@ -27,6 +27,7 @@
 | **문제** | 진로 정보는 직업·학과·자격·능력이 서로 얽혀 있어 한 문서만 찾아서는 "이 직업에 어떤 학과와 자격이 이어지나"에 답하기 어렵다. 또 "관련 자격"을 "필수 자격"으로, 없는 연봉을 있는 것처럼 말하면 해롭다 |
 | **접근** | 질문마다 검색 방식을 Jev가 고르고(벡터·그래프·하이브리드), Supervisor가 검색 → 추론 → 검증 워커를 돌린다. 검증에서 근거가 부족하면 보류한다. 입력과 출력은 NeMo 레일이 각각 지킨다 |
 | **안전** | 막아야 할 입력·출력 사례를 하나도 놓치지 않도록 레일을 평가하며 고쳤다 (입력 273건, 출력 17건 전부 정답) |
+| **근거 보강(CRAG)** | 검색 근거를 평가해 부족하면 검색어를 고쳐 다시 찾고(Context Recall 0.848 → 0.936), 끝내 없는 항목은 지어내지 않고 "확인되지 않았다"고 밝힌다 |
 
 ## 핵심 지표
 
@@ -36,12 +37,13 @@
 | 벡터 검색 | 직업 업무 설명(`work`) 551개 임베딩 (`text-embedding-3-small`, 768차원, 코사인) |
 | 가드레일 입력 평가 | 273건 중 **273건 정답** — 정상 질문 오탐 0, 놓친 공격 0, 규칙 일치율 1.00 |
 | 가드레일 출력 평가 | 17건 중 **17건 정답** (개선 전 본인 주소 노출 1건 해소) |
-| RAGAS (168문항, 근거충돌 제외) | Faithfulness **0.944** · Answer Relevancy 0.588 · Context Precision 0.723 · Context Recall 0.834. 근거부족 문항은 보류가 정답이라 Answer Relevancy가 낮게(0.035) 나옴. 보고서: [output/eval/ragas_20261116_rag_only/report.md](output/eval/ragas_20261116_rag_only/report.md) |
-| 가드레일 판정 지연 | 입력 중앙값 0.58초(p90 0.69초), 출력 중앙값 0.32초(p90 0.64초) |
+| RAGAS (138문항, CRAG 적용 후) | Faithfulness **0.961** · Answer Relevancy 0.638 · Context Precision 0.788 · Context Recall **0.936** (CRAG 전 0.955 / 0.618 / 0.785 / 0.848). 실행 오류 0건. [통합 평가 보고서](docs/CareerGraph_통합평가_보고서_20261116.md#4-ragas-결과-crag-적용-후-138문항) |
+| CRAG 재검색 | 138문항 중 40문항(29%)이 검색어 재작성을 거침. 평균 지연 12.1초(p90 19.8초) · [동작 확인](docs/CareerGraph_통합평가_보고서_20261116.md#3-crag-동작-확인) |
+| 가드레일 판정 지연 | 입력 중앙값 0.60초(p90 0.82초), 출력 중앙값 0.36초(p90 0.71초) |
 | 배포 앱 점검 | SQL 프로필 질문, 그래프 검색 질문 각 1건 통과 (2026-11-16) |
-| 테스트 | 26개 모두 통과 |
+| 테스트 | 54개 모두 통과 ([재현](docs/CareerGraph_통합평가_보고서_20261116.md#8-재현)) |
 
-가드레일 평가는 [eval/guardrails/](eval/guardrails/)에서 같은 사례로 개선 전후를 비교한 결과입니다. 자세한 표는 [적용 명세서](docs/CareerGraph_Guardrails_적용명세서.md)에 있습니다.
+모든 수치와 사례별 표, 남은 과제는 [통합 평가 보고서](docs/CareerGraph_통합평가_보고서_20261116.md)에 있습니다. 가드레일은 [eval/guardrails/](eval/guardrails/)에서 같은 사례로 개선 전후를 비교했고, 자세한 표는 [적용 명세서](docs/CareerGraph_Guardrails_적용명세서.md)에 있습니다.
 
 ## 아키텍처
 
@@ -78,7 +80,10 @@ flowchart LR
   PC -->|"예"| PR["회원 프로필 조회<br/>SQL"]
   PC -->|"아니오"| SE
   PR --> SE["검색 워커<br/>Jev가 방식 선택<br/>vector · graph · hybrid"]
-  SE --> SV{"Supervisor"}
+  SE --> GR["CRAG 근거 평가<br/>correct · ambiguous · incorrect"]
+  GR --> SV{"Supervisor"}
+  SV -->|"부족 · 재작성 1회"| RW["검색어 재작성"]
+  RW --> SE
   SV --> RE["추론 워커<br/>근거로 답변 작성"]
   RE --> SV
   SV --> VE["검증 워커<br/>근거 대조"]
@@ -91,6 +96,7 @@ flowchart LR
 ```
 
 - **Supervisor:** 상태를 보고 다음 워커를 고르는 조정 계층입니다. 재검색은 한 번까지, 전체 단계는 10단계까지로 제한합니다.
+- **CRAG(근거 평가·재작성):** 검색 직후 `grade`가 근거 중 쓸 것만 남기고 충분성을 판정합니다. 부족하면 `rewrite`가 부족한 정보를 찾는 검색어만 새로 만들어 한 번 다시 검색하고, 이전 근거와 합쳐 다시 평가합니다. 재검색 뒤에도 일부만 확인되면 확인된 부분만 답하고 없는 항목은 밝힙니다(`partial`). 실제 질문별 경로와 RAGAS 전후 비교: [통합 평가 보고서](docs/CareerGraph_통합평가_보고서_20261116.md#3-crag-동작-확인).
 - **검색 워커:** 선택된 검색 도구 하나만 모델에 주고 인자만 쓰게 합니다. Cypher는 쓰기 명령(CREATE·MERGE·DELETE 등)을 정규식으로 막아 읽기 전용으로만 실행합니다(DB 계정 권한 제한은 아닙니다). 분류가 실패하면 임의로 다른 방식으로 바꾸지 않고 오류로 처리합니다.
 - **추론·검증 워커:** 추론은 검색 근거로만 답하고, 검증은 답의 주장이 근거에 있는지 대조합니다. 근거 문서에 숨은 지시("이전 규칙을 무시하고…")가 있으면 근거에서 뺍니다.
 - **보류:** 근거가 부족한 질문(합격 컷, 취업률 등)은 보류하고, 검색 실패·서비스 오류와 구분합니다. 자세히: [에이전트 상세설계](docs/CareerGraph_에이전트_상세설계.md)
@@ -112,6 +118,14 @@ NeMo는 **판정만** 하고(`check_async`), 검색과 답변은 LangGraph가 �
 - 평가 방법과 결과, 개선 내역: [Guardrails 적용 명세서](docs/CareerGraph_Guardrails_적용명세서.md)
 
 ## 트레이싱 (Langfuse)
+
+| 트레이스 트리 | CRAG 재검색 루프 (그래프 보기) |
+| --- | --- |
+| ![트레이스 트리](docs/images/langfuse_02_trace_tree.jpg) | ![CRAG 루프](docs/images/langfuse_03_graph_crag_loop.jpg) |
+| **타임라인** | **가드레일(Jev) 판정** |
+| ![타임라인](docs/images/langfuse_04_timeline.jpg) | ![Jev 판정](docs/images/langfuse_05_guardrail_jev.jpg) |
+
+그림은 CRAG 재작성 경로 질문 하나의 트레이스입니다. 전체 화면과 설명: [통합 평가 보고서 6장](docs/CareerGraph_통합평가_보고서_20261116.md#6-langfuse-트레이싱-스크린샷)
 
 `LANGFUSE_*` 키를 넣으면 질문 한 턴이 Langfuse 트레이스 하나로 남습니다. 키가 없으면 트레이싱 없이 그대로 동작합니다. 구현은 [app/core/tracing.py](app/core/tracing.py)입니다.
 
@@ -198,13 +212,14 @@ Streamlit Community Cloud 배포는 Main file path를 `ui/streamlit_app.py`, Pyt
 - **데이터·저장소:** Neo4j Aura, SQLite(가상 회원, 대화 체크포인트)
 - **UI·배포:** Streamlit, Streamlit Community Cloud
 - **관측:** Langfuse(노드·LLM·가드레일 트레이스, 개인정보 가림)
+- **평가:** RAGAS 0.4(Faithfulness·Answer Relevancy·Context Precision/Recall), 가드레일 사례 평가
 - **평가·테스트:** pytest, 가드레일 평가 스크립트, 228문항 평가셋
 
 ## 한계
 
 - **회원 연락처:** 이메일·전화·주소는 사용자가 직접 물을 때만 모델에 넘기는 방식으로 바뀌었고, 답변에 섞이면 출력 레일이 주소·전화·이메일을 가립니다.
 - **평가셋 정답은 초안:** `eval/evaluation_draft.json` 228문항은 팀원 검토 전 초안이라 점수가 바뀔 수 있습니다. 출력 평가 17건은 손으로 만든 사례입니다.
-- **RAGAS 재현:** 저장소에는 보고서만 있고 실행 스크립트가 없어 다시 돌릴 수 없습니다. 고난도 30문항도 평가셋 파일에 없습니다. 
+- **CRAG 평가에서 남은 과제:** Multi-hop Context Precision이 0.517 → 0.445로 내려갔고, 근거부족 18문항 중 14문항이 `abstain`이 아닌 `partial`로 끝납니다(채점 규칙과 불일치). 고난도 30문항은 평가셋 파일에 없고, 근거충돌_가상 30문항은 합성 문서 주입이 필요해 평가하지 못했습니다. 자세히: [통합 평가 보고서 7장](docs/CareerGraph_통합평가_보고서_20261116.md#7-남은-과제)
 - **데이터 범위:** 커리어넷 직업 552개의 API 설명·관계만 씁니다. 한국직업전망 PDF는 범위에서 제외했습니다. 빈 필드는 "필요 없음"이 아니라 미제공이며, 수집일·수정일·조사연도가 서로 다릅니다.
 - **운영 코드 층 미구현:** 출력 레일의 `staff_code_output`은 수업 실습용 TODO로 남아 있습니다.
 - 자세히: [Guardrails 적용 명세서 7장](docs/CareerGraph_Guardrails_적용명세서.md), [데이터 한계](data/README.md)
@@ -216,6 +231,7 @@ Streamlit Community Cloud 배포는 Main file path를 `ui/streamlit_app.py`, Pyt
 | 오현탁 | Supervisor·검색·통합, 배포, Streamlit UI |
 | 송진명 | NeMo 가드레일, 검증 에이전트 |
 | 이승재 | 데이터 전처리, Neo4j 적재 |
+| 봉기람 | 프론트 디자인 및 노션 정리 |
 
 역할 분담과 5일 일정: [docs/CareerGraph_5일_역할분담_일정.md](docs/CareerGraph_5일_역할분담_일정.md). 작업 중 일부는 AI 코딩 도구(Claude Code)와 함께 했고, 결과는 직접 실행·평가해 확인했습니다.
 
