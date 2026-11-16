@@ -37,6 +37,10 @@ READ_ONLY_BLOCKLIST = re.compile(
     re.IGNORECASE,
 )
 
+MAX_QUERY_ROWS = 80
+MAX_EVIDENCE = 32
+MAX_GRAPH_PATHS = 32
+
 
 @lru_cache(maxsize=1)
 def _job_row_map() -> dict[str, str]:
@@ -94,7 +98,7 @@ def _run_read_query(query: str, **parameters: Any) -> list[dict[str, Any]]:
     with _get_driver() as driver:
         with driver.session(database=NEO4J_DATABASE) as session:
             result = session.run(query, parameters)
-            return [record.data() for record in result]
+            return [record.data() for record in result.fetch(MAX_QUERY_ROWS)]
 
 
 def _validate_read_only_cypher(query: str) -> None:
@@ -103,8 +107,9 @@ def _validate_read_only_cypher(query: str) -> None:
     if not query.strip():
         raise ValueError("Cypher 쿼리가 비어 있습니다.")
 
-    if ";" in query:
-        raise ValueError("한 번에 하나의 Cypher 쿼리만 허용합니다.")
+    stripped = query.strip()
+    if ";" in stripped.rstrip(";") or stripped.count(";") > 1:
+        raise ValueError("한 번에 하나의 읽기 전용 Cypher 문장만 허용합니다.")
 
     if READ_ONLY_BLOCKLIST.search(query):
         raise ValueError("읽기 전용 검색에서는 데이터 변경 Cypher를 사용할 수 없습니다.")
@@ -201,13 +206,11 @@ def _normalize_record(record: dict[str, Any]) -> dict[str, Any]:
     if content is None:
         content = ""
 
-    evidence_id = raw.get("evidence_id")
-    if not evidence_id:
-        evidence_id = _canonical_evidence_id(
-            row_id=row_id,
-            source_field=source_field,
-            fallback_node_id=node_id,
-        )
+    evidence_id = _canonical_evidence_id(
+        row_id=row_id,
+        source_field=source_field,
+        fallback_node_id=node_id,
+    )
 
     metadata = dict(raw.get("metadata") or {})
     for key in (
@@ -240,7 +243,49 @@ def _normalize_record(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [_normalize_record(row) for row in rows]
+    normalized = []
+    for row in rows:
+        try:
+            item = _normalize_record(row)
+        except ValueError:
+            continue
+        if item["content"]:
+            normalized.append(item)
+    return _deduplicate_evidence(normalized)
+
+
+def _deduplicate_evidence(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """같은 근거 ID의 반복 행을 합치되 다른 학과·자격 값은 보존한다."""
+    merged: dict[str, dict[str, Any]] = {}
+    contents: dict[str, list[str]] = {}
+    paths: dict[str, list[list[str]]] = {}
+    for row in rows:
+        key = row["evidence_id"]
+        if key not in merged:
+            merged[key] = dict(row)
+            contents[key] = []
+            paths[key] = []
+        content = str(row.get("content") or "").strip()
+        if content and content not in contents[key]:
+            contents[key].append(content)
+        path = row.get("graph_path") or []
+        if path and path not in paths[key]:
+            paths[key].append(path)
+    result = []
+    for key, row in merged.items():
+        row["content"] = " | ".join(contents[key][:16])
+        # Evidence.graph_path는 list[str] 스키마다. 같은 evidence ID에 여러 경로가
+        # 합쳐졌을 때 전체 경로는 검색 결과의 graph_paths에 두고, 대표 경로 하나만
+        # Evidence 객체에 넣어 구조화 출력 검증을 통과시킨다.
+        row["graph_path"] = paths[key][0] if paths[key] else []
+        row["metadata"] = {
+            **row.get("metadata", {}),
+            "merged_values": len(contents[key]),
+            "merged_paths": len(paths[key]),
+            "all_graph_paths": paths[key][:MAX_GRAPH_PATHS],
+        }
+        result.append(row)
+    return result[:MAX_EVIDENCE]
 
 
 def _vector_search(question: str, top_k: int) -> list[dict[str, Any]]:
@@ -296,7 +341,7 @@ def graph_search(cypher: str) -> dict[str, Any]:
 
     try:
         rows = _run_read_query(cypher)
-    except Neo4jError as exc:
+    except (Neo4jError, ValueError) as exc:
         return {
             "search_mode": "graph",
             "evidence": [],
@@ -316,10 +361,11 @@ def graph_search(cypher: str) -> dict[str, Any]:
         if (path := _path_ids(row.get("graph_path") or row.get("p")))
     ]
 
+    evidence = _deduplicate_evidence(evidence)
     return {
         "search_mode": "graph",
         "evidence": evidence,
-        "graph_paths": graph_paths,
+        "graph_paths": graph_paths[:MAX_GRAPH_PATHS],
     }
 
 
@@ -331,7 +377,15 @@ def hybrid_search(
 ) -> dict[str, Any]:
     """Job 벡터 후보를 찾은 뒤 실제 Aura 그래프 관계를 확장한다."""
 
-    vector_rows = _vector_search(question, top_k)
+    try:
+        vector_rows = _vector_search(question, top_k)
+    except (Neo4jError, ValueError) as exc:
+        return {
+            "search_mode": "hybrid",
+            "evidence": [],
+            "graph_paths": [],
+            "error": f"읽기 전용 검색 실패: {exc.__class__.__name__}",
+        }
     job_codes = [
         row["metadata"]["job_code"]
         for row in vector_rows
@@ -350,11 +404,15 @@ def hybrid_search(
             "graph_paths": [],
         }
 
-    graph_rows = _run_read_query(
-        cypher,
-        job_codes=job_codes,
-        row_ids=row_ids,
-    )
+    try:
+        graph_rows = _run_read_query(cypher, job_codes=job_codes, row_ids=row_ids)
+    except (Neo4jError, ValueError) as exc:
+        return {
+            "search_mode": "hybrid",
+            "evidence": vector_rows,
+            "graph_paths": [],
+            "error": f"읽기 전용 그래프 검색 실패: {exc.__class__.__name__}",
+        }
     graph_paths = [
         path
         for row in graph_rows
@@ -363,8 +421,8 @@ def hybrid_search(
 
     return {
         "search_mode": "hybrid",
-        "evidence": vector_rows + _normalize_rows(graph_rows),
-        "graph_paths": graph_paths,
+        "evidence": _deduplicate_evidence(vector_rows + _normalize_rows(graph_rows)),
+        "graph_paths": graph_paths[:MAX_GRAPH_PATHS],
     }
 
 

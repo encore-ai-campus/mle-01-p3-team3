@@ -9158,37 +9158,6 @@
     ]
   },
   {
-    "id": "EVAL091",
-    "category": "근거부족",
-    "question": "사서의 2030년 확정 연봉과 취업 보장 여부를 알려주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "268"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(2030년 확정 연봉과 취업 보장 여부)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0176",
-          "node_id": "job:268",
-          "name": "사서"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
     "id": "EVAL092",
     "category": "근거부족",
     "question": "양식원으로 취업할 수 있는 특정 회사의 합격 컷을 알려주세요.",
@@ -9251,37 +9220,6 @@
     "expected_paths": []
   },
   {
-    "id": "EVAL094",
-    "category": "근거부족",
-    "question": "범죄과학수사관 종사자의 실제 월급을 한 금액으로 확정해 주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "10064"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(종사자의 실제 월급을 하나의 금액으로 확정한 정보)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0518",
-          "node_id": "job:10064",
-          "name": "범죄과학수사관"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
     "id": "EVAL095",
     "category": "근거부족",
     "question": "방문판매원 관련 학과 졸업생의 내년 취업률을 확정해 주세요.",
@@ -9304,37 +9242,6 @@
           "row_id": "CAREER0390",
           "node_id": "job:1113",
           "name": "방문판매원"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
-    "id": "EVAL096",
-    "category": "근거부족",
-    "question": "사이버교육운영자의 2030년 확정 연봉과 취업 보장 여부를 알려주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "462"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(2030년 확정 연봉과 취업 보장 여부)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0306",
-          "node_id": "job:462",
-          "name": "사이버교육운영자"
         }
       ],
       "majors": [],
@@ -9406,37 +9313,6 @@
     "expected_paths": []
   },
   {
-    "id": "EVAL099",
-    "category": "근거부족",
-    "question": "바리스타 종사자의 실제 월급을 한 금액으로 확정해 주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "180"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(종사자의 실제 월급을 하나의 금액으로 확정한 정보)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0121",
-          "node_id": "job:180",
-          "name": "바리스타"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
     "id": "EVAL100",
     "category": "근거부족",
     "question": "감성인식기술전문가 관련 학과 졸업생의 내년 취업률을 확정해 주세요.",
@@ -9459,37 +9335,6 @@
           "row_id": "CAREER0536",
           "node_id": "job:10102",
           "name": "감성인식기술전문가"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
-    "id": "EVAL101",
-    "category": "근거부족",
-    "question": "사회단체활동가의 2030년 확정 연봉과 취업 보장 여부를 알려주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "934"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(2030년 확정 연봉과 취업 보장 여부)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0335",
-          "node_id": "job:934",
-          "name": "사회단체활동가"
         }
       ],
       "majors": [],
@@ -9561,37 +9406,6 @@
     "expected_paths": []
   },
   {
-    "id": "EVAL104",
-    "category": "근거부족",
-    "question": "구성작가 종사자의 실제 월급을 한 금액으로 확정해 주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "260"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(종사자의 실제 월급을 하나의 금액으로 확정한 정보)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0169",
-          "node_id": "job:260",
-          "name": "구성작가"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
     "id": "EVAL105",
     "category": "근거부족",
     "question": "비행기승무원 관련 학과 졸업생의 내년 취업률을 확정해 주세요.",
@@ -9614,37 +9428,6 @@
           "row_id": "CAREER0287",
           "node_id": "job:418",
           "name": "비행기승무원"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
-    "id": "EVAL106",
-    "category": "근거부족",
-    "question": "문화여가사의 2030년 확정 연봉과 취업 보장 여부를 알려주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "10042"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(2030년 확정 연봉과 취업 보장 여부)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0496",
-          "node_id": "job:10042",
-          "name": "문화여가사"
         }
       ],
       "majors": [],
@@ -9716,37 +9499,6 @@
     "expected_paths": []
   },
   {
-    "id": "EVAL109",
-    "category": "근거부족",
-    "question": "선박갑판원 종사자의 실제 월급을 한 금액으로 확정해 주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "1112"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(종사자의 실제 월급을 하나의 금액으로 확정한 정보)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0389",
-          "node_id": "job:1112",
-          "name": "선박갑판원"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
     "id": "EVAL110",
     "category": "근거부족",
     "question": "속기사 관련 학과 졸업생의 내년 취업률을 확정해 주세요.",
@@ -9769,37 +9521,6 @@
           "row_id": "CAREER0305",
           "node_id": "job:459",
           "name": "속기사"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
-    "id": "EVAL111",
-    "category": "근거부족",
-    "question": "비파괴검사원의 2030년 확정 연봉과 취업 보장 여부를 알려주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "81"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(2030년 확정 연봉과 취업 보장 여부)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0054",
-          "node_id": "job:81",
-          "name": "비파괴검사원"
         }
       ],
       "majors": [],
@@ -9871,37 +9592,6 @@
     "expected_paths": []
   },
   {
-    "id": "EVAL114",
-    "category": "근거부족",
-    "question": "목공 종사자의 실제 월급을 한 금액으로 확정해 주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "68"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(종사자의 실제 월급을 하나의 금액으로 확정한 정보)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0045",
-          "node_id": "job:68",
-          "name": "목공"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
     "id": "EVAL115",
     "category": "근거부족",
     "question": "3D 프린팅 전문가 관련 학과 졸업생의 내년 취업률을 확정해 주세요.",
@@ -9924,37 +9614,6 @@
           "row_id": "CAREER0455",
           "node_id": "job:10001",
           "name": "3D 프린팅 전문가"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
-    "id": "EVAL116",
-    "category": "근거부족",
-    "question": "의료정보시스템개발자의 2030년 확정 연봉과 취업 보장 여부를 알려주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "467"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(2030년 확정 연봉과 취업 보장 여부)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0309",
-          "node_id": "job:467",
-          "name": "의료정보시스템개발자"
         }
       ],
       "majors": [],
@@ -10017,37 +9676,6 @@
           "row_id": "CAREER0020",
           "node_id": "job:34",
           "name": "치과의사"
-        }
-      ],
-      "majors": [],
-      "abilities": [],
-      "certificates": []
-    },
-    "expected_paths": []
-  },
-  {
-    "id": "EVAL119",
-    "category": "근거부족",
-    "question": "전화교환원 종사자의 실제 월급을 한 금액으로 확정해 주세요.",
-    "expected_route": "abstain",
-    "expected_behavior": "요청한 정보는 제공 데이터(직업 업무 설명)로 확인할 수 없음을 밝히고 금액·확률·취업률·보장 여부를 추측하지 않는다",
-    "expected_job_codes": [
-      "404"
-    ],
-    "evidence": [],
-    "acceptance": "확인 불가를 밝히고 근거 없는 수치나 보장을 만들지 않음",
-    "synthetic_fixture": "",
-    "review_status": "초안: 팀원 정답 검토 필요 / 클로드 확인 / 지피티 확인",
-    "reference_answer": "질문한 내용(종사자의 실제 월급을 하나의 금액으로 확정한 정보)은 현재 제공하는 직업 업무 설명 근거로 확인할 수 없습니다. 확정 금액, 합격 가능성, 취업률은 추측해 답하지 않습니다.",
-    "expected_search_mode": "vector",
-    "expected_outcome": "abstain",
-    "expected_guardrail_action": "allow",
-    "expected_entities": {
-      "jobs": [
-        {
-          "row_id": "CAREER0273",
-          "node_id": "job:404",
-          "name": "전화교환원"
         }
       ],
       "majors": [],
