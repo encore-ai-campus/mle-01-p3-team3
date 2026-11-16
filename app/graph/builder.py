@@ -4,6 +4,7 @@ from langgraph.graph import END, START, StateGraph
 from typing import Literal
 
 from app.core.schemas import ChatContext
+from app.graph.crag import grade_node, rewrite_node
 from app.graph.nodes import (
     profile_node,
     profile_check_node,
@@ -41,6 +42,8 @@ def build_app(checkpointer=None, interrupt_before=None):
     builder.add_node("profile", profile_node)
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("search", search_node)
+    builder.add_node("grade", grade_node)      # CRAG: 검색 근거 평가
+    builder.add_node("rewrite", rewrite_node)  # CRAG: 검색어 재작성
     builder.add_node("reasoner", reasoner_node)
     builder.add_node("verifier", verifier_node)
 
@@ -63,7 +66,11 @@ def build_app(checkpointer=None, interrupt_before=None):
 
     # Supervisor의 Command(goto)가 다음 워커를 선택한다.
     # 각 워커는 작업이 끝나면 Supervisor로 돌아온다.
-    builder.add_edge("search", "supervisor")
+    # CRAG: 검색 결과는 grade가 먼저 평가하고, Supervisor가 판정을 보고 다음 워커를 고른다.
+    # rewrite는 검색어만 고친 뒤 곧바로 재검색한다.
+    builder.add_edge("search", "grade")
+    builder.add_edge("grade", "supervisor")
+    builder.add_edge("rewrite", "search")
     builder.add_edge("reasoner", "supervisor")
     builder.add_edge("verifier", "supervisor")
 
